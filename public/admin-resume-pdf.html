@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Resume Generator | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header {
+            margin-bottom: 25px;
+        }
+        .header h2 { font-size: 28px; margin-bottom: 7px; }
+        .header p { color: #6b7280; }
+
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.04);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 25px;
+            border-radius: 8px;
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: #005f5f;
+            color: white;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background: #2563eb;
+            color: white;
+        }
+        .btn-secondary:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: #16a34a;
+            color: white;
+        }
+        .btn-success:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+        .btn-danger:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .preview-container {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 600px;
+            overflow: auto;
+        }
+        .preview-container iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 8px;
+        }
+
+        .status {
+            display: none;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .status.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+            border: 1px solid #a7e0b8;
+        }
+        .status.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+            border: 1px solid #f5c6c6;
+        }
+        .status.loading {
+            display: block;
+            background: #e5f0ff;
+            color: #1e40af;
+            border: 1px solid #b8d4f5;
+        }
+        .status.info {
+            display: block;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .feature-item .icon {
+            font-size: 30px;
+            margin-bottom: 8px;
+        }
+        .feature-item .label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .token-display {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+            font-family: monospace;
+        }
+
+        @media (max-width: 700px) {
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+            .btn-group { flex-direction: column; }
+            .btn { text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>My Resume Portfolio — Admin</h1>
+        <div>
+            <button id="backBtn" class="back-btn">Dashboard</button>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="header">
+            <h2>📄 PDF Resume Generator</h2>
+            <p>Generate a professional PDF resume from your portfolio data.</p>
+        </div>
+
+        <div class="card">
+            <h3>📋 Generate Resume</h3>
+            <p style="color:#6b7280;margin:10px 0;">Your resume will include: Profile, Education, Experience, Skills, Projects & Social Links.</p>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="generateAndDownload()">
+                    ⬇️ Download PDF
+                </button>
+                <button class="btn btn-secondary" onclick="previewResume()">
+                    👁️ Preview Resume
+                </button>
+                <button class="btn btn-success" onclick="openInNewTab()">
+                    📂 Open in New Tab
+                </button>
+            </div>
+
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="card">
+            <h3>📊 What's Included</h3>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <div class="icon">👤</div>
+                    <div class="label">Profile & Photo</div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">📚</div>
+                    <div class="label">Education</div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">💼</div>
+                    <div class="label">Experience</div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">🎯</div>
+                    <div class="label">Skills</div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">🚀</div>
+                    <div class="label">Projects</div>
+                </div>
+                <div class="feature-item">
+                    <div class="icon">🔗</div>
+                    <div class="label">Social Links</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="previewCard" style="display:none;">
+            <h3>👁️ Preview</h3>
+            <div class="preview-container">
+                <iframe id="previewFrame"></iframe>
+            </div>
+            <button class="btn btn-danger" onclick="closePreview()" style="margin-top:15px;">
+                ✕ Close Preview
+            </button>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        let currentToken = null;
+        let currentUser = null;
+
+        async function getAccessToken() {
+            try {
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                
+                if (error) {
+                    console.error('Auth error:', error);
+                    showStatus('❌ Auth error: ' + error.message, 'error');
+                    return null;
+                }
+                
+                if (!session) {
+                    showStatus('⚠️ Please login first! Redirecting to login...', 'info');
+                    setTimeout(() => {
+                        window.location.href = '/admin.html';
+                    }, 2000);
+                    return null;
+                }
+                
+                currentToken = session.access_token;
+                currentUser = session.user;
+                console.log('✅ Token obtained successfully');
+                console.log('👤 User:', currentUser?.email);
+                return session.access_token;
+            } catch (error) {
+                console.error('Get token error:', error);
+                showStatus('❌ Error: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 8000);
+        }
+
+        function closePreview() {
+            document.getElementById('previewCard').style.display = 'none';
+            document.getElementById('previewFrame').srcdoc = '';
+        }
+
+        async function generateAndDownload() {
+            const token = await getAccessToken();
+            if (!token) {
+                showStatus('❌ No token found. Please login again.', 'error');
+                return;
+            }
+
+            showStatus('⏳ Generating PDF... Please wait.', 'loading');
+
+            try {
+                const response = await fetch('/api/resume/generate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Session expired. Please login again.');
+                    }
+                    const error = await response.json();
+                    throw new Error(error.message || 'Could not generate PDF');
+                }
+
+                // Download the PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'resume.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showStatus('✅ PDF downloaded successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error:', error);
+                if (error.message.includes('expired')) {
+                    showStatus('⚠️ ' + error.message + ' Redirecting...', 'info');
+                    setTimeout(() => {
+                        window.location.href = '/admin.html';
+                    }, 2000);
+                } else {
+                    showStatus('❌ ' + error.message, 'error');
+                }
+            }
+        }
+
+        async function previewResume() {
+            const token = await getAccessToken();
+            if (!token) {
+                showStatus('❌ No token found. Please login again.', 'error');
+                return;
+            }
+
+            const previewCard = document.getElementById('previewCard');
+            const frame = document.getElementById('previewFrame');
+
+            showStatus('⏳ Loading preview...', 'loading');
+
+            try {
+                const response = await fetch('/api/resume/preview', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'text/html'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Session expired. Please login again.');
+                    }
+                    const text = await response.text();
+                    throw new Error(text || 'Could not load preview');
+                }
+
+                const html = await response.text();
+                frame.srcdoc = html;
+                previewCard.style.display = 'block';
+
+                showStatus('✅ Preview loaded! Scroll down to see it.', 'success');
+
+                // Scroll to preview
+                setTimeout(() => {
+                    previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 500);
+
+            } catch (error) {
+                console.error('Error:', error);
+                if (error.message.includes('expired') || error.message.includes('login')) {
+                    showStatus('⚠️ ' + error.message + ' Redirecting...', 'info');
+                    setTimeout(() => {
+                        window.location.href = '/admin.html';
+                    }, 2000);
+                } else {
+                    showStatus('❌ ' + error.message, 'error');
+                }
+            }
+        }
+
+        function openInNewTab() {
+    getAccessToken().then(token => {
+        if (!token) {
+            showStatus('❌ Please login first!', 'error');
+            return;
+        }
+        
+        // Open a blank window first
+        const newWindow = window.open('', '_blank');
+        
+        // Fetch the HTML with auth header
+        fetch('/api/resume/preview', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Write HTML to the new window
+            newWindow.document.write(html);
+            newWindow.document.close();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            newWindow.document.write('<h1>Error loading preview</h1>');
+            newWindow.document.close();
+        });
+    });
+}
+    </script>
+</body>
+</html>

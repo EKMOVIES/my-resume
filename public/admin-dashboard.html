@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | My Resume Portfolio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 22px; }
+        .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 18px;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.1); }
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .welcome { margin-bottom: 30px; }
+        .welcome h2 { font-size: 28px; margin-bottom: 8px; }
+        .welcome p { color: #6b7280; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.04);
+        }
+        .card h3 { margin-bottom: 10px; font-size: 18px; }
+        .card p { color: #6b7280; line-height: 1.5; }
+        .card .btn-link {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 9px 16px;
+            background: #005f5f;
+            color: white;
+            text-decoration: none;
+            border-radius: 7px;
+            font-size: 14px;
+        }
+        .card .btn-link:hover { opacity: 0.9; }
+        .status {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #e6f7f4;
+            color: #005f5f;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        @media (max-width: 600px) {
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+            .container { margin-top: 25px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>My Resume Portfolio — Admin</h1>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </nav>
+    <main class="container">
+        <section class="welcome">
+            <h2>Admin Dashboard</h2>
+            <p>Manage your resume portfolio content from one place.</p>
+        </section>
+        <section class="cards">
+            <div class="card">
+                <h3>Profile</h3>
+                <p>Manage your name, bio, contact information and profile details.</p>
+                <a href="/admin-profile.html" class="btn-link">Manage Profile</a>
+            </div>
+            <div class="card">
+                <h3>Education</h3>
+                <p>Add and manage your educational qualifications.</p>
+                <a href="/admin-education.html" class="btn-link">Manage Education</a>
+            </div>
+            <div class="card">
+                <h3>Experience</h3>
+                <p>Manage your professional work experience.</p>
+                <a href="/admin-experience.html" class="btn-link">Manage Experience</a>
+            </div>
+            <div class="card">
+                <h3>Skills</h3>
+                <p>Add, edit and remove your professional skills.</p>
+                <a href="/admin-skills.html" class="btn-link">Manage Skills</a>
+            </div>
+            <!-- এই কার্ডগুলো dashboard এ যোগ করো -->
+
+<div class="card">
+    <h3>Services</h3>
+    <p>Manage the services displayed on your portfolio.</p>
+    <a href="/admin-services.html" class="btn-link">Manage Services</a>
+</div>
+
+<div class="card">
+    <h3>Projects</h3>
+    <p>Manage your portfolio projects and project details.</p>
+    <a href="/admin-projects.html" class="btn-link">Manage Projects</a>
+</div>
+<div class="card">
+    <h3>Testimonials</h3>
+    <p>Manage client testimonials and reviews.</p>
+    <a href="/admin-testimonials.html" class="btn-link">Manage Testimonials</a>
+</div>
+<div class="card">
+    <h3>Messages</h3>
+    <p>View messages submitted through your portfolio contact form.</p>
+    <a href="/admin-messages.html" class="btn-link">View Messages</a>
+</div>
+<div class="card">
+    <h3>Blog</h3>
+    <p>Create and manage blog posts.</p>
+    <a href="/admin-blog.html" class="btn-link">Manage Blog</a>
+</div>
+
+<div class="card">
+    <h3>📁 File Manager</h3>
+    <p>Upload and manage your files (images, documents, PDFs).</p>
+    <a href="/admin-file-manager.html" class="btn-link">Open File Manager</a>
+</div>
+
+<div class="card">
+    <h3>📊 Analytics</h3>
+    <p>Track your website performance, visitor behavior and engagement.</p>
+    <a href="/admin-analytics.html" class="btn-link">View Analytics</a>
+</div>
+
+<div class="card">
+    <h3>📄 PDF Resume</h3>
+    <p>Generate a professional PDF resume from your portfolio data with one click.</p>
+    <a href="/admin-resume-pdf.html" class="btn-link">Generate PDF →</a>
+</div>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+        async function checkAuth() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = '/admin.html';
+                return;
+            }
+        }
+        checkAuth();
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            window.location.href = '/admin.html';
+        });
+    </script>
+</body>
+</html>

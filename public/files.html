@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Manager | My Portfolio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        .container h1 {
+            margin-bottom: 10px;
+            color: #005f5f;
+            text-align: center;
+        }
+        .container .subtitle {
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        /* Password Section */
+        #passwordSection {
+            max-width: 400px;
+            margin: 0 auto 30px;
+            text-align: center;
+        }
+        #passwordSection .input-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #passwordSection input {
+            flex: 1;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            min-width: 200px;
+            font-size: 16px;
+        }
+        #passwordSection input:focus {
+            outline: none;
+            border-color: #005f5f;
+        }
+        #passwordSection button {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        #passwordSection button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        #passwordError {
+            color: #dc2626;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        /* Files Grid */
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .file-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .file-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-color: #005f5f;
+        }
+        .file-card .file-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .file-card .file-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            word-break: break-all;
+            font-size: 14px;
+            color: #1f2937;
+        }
+        .file-card .file-size {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+        .file-card .file-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .file-card .file-actions a {
+            padding: 6px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .file-card .file-actions .view-btn {
+            background: #005f5f;
+            color: white;
+        }
+        .file-card .file-actions .view-btn:hover {
+            opacity: 0.9;
+        }
+        .file-card .file-actions .download-btn {
+            background: #16a34a;
+            color: white;
+        }
+        .file-card .file-actions .download-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .loading-text {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            grid-column: 1 / -1;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+            grid-column: 1 / -1;
+        }
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 10px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: #005f5f;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .back-link-container {
+            text-align: center;
+        }
+        
+        /* Category Title */
+        .category-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 25px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #005f5f;
+            grid-column: 1 / -1;
+        }
+        .category-title:first-of-type {
+            margin-top: 0;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            #passwordSection .input-group {
+                flex-direction: column;
+            }
+            #passwordSection input {
+                min-width: auto;
+            }
+            .files-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 400px) {
+            .files-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📁 File Manager</h1>
+    <p class="subtitle">View and download my files securely</p>
+    
+    <!-- Password Section -->
+    <div id="passwordSection">
+        <div class="input-group">
+            <input type="password" id="passwordInput" placeholder="Enter password..." autofocus>
+            <button onclick="verifyPassword()">🔓 Unlock</button>
+        </div>
+        <div id="passwordError">❌ Wrong password! Please try again.</div>
+    </div>
+    
+    <!-- Files Container -->
+    <div id="filesContainer">
+        <div class="files-grid">
+            <div class="loading-text">🔒 Enter password to view files</div>
+        </div>
+    </div>
+    
+    <div class="back-link-container">
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+</div>
+
+<script>
+// 🔑 Password (Change this to your desired password)
+const FILE_PASSWORD = 'admin123';
+
+function verifyPassword() {
+    const input = document.getElementById('passwordInput');
+    const error = document.getElementById('passwordError');
+    const password = input.value.trim();
+    
+    if (password === FILE_PASSWORD) {
+        error.style.display = 'none';
+        document.getElementById('passwordSection').style.display = 'none';
+        loadFiles();
+    } else {
+        error.style.display = 'block';
+        input.value = '';
+        input.focus();
+        // Shake animation
+        input.style.animation = 'shake 0.5s ease';
+        setTimeout(() => {
+            input.style.animation = '';
+        }, 500);
+    }
+}
+
+// Enter key support
+document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        verifyPassword();
+    }
+});
+
+// Load files from server
+async function loadFiles() {
+    const container = document.getElementById('filesContainer');
+    
+    try {
+        container.innerHTML = `
+            <div class="files-grid">
+                <div class="loading-text">⏳ Loading files...</div>
+            </div>
+        `;
+        
+        const response = await fetch('/api/public/files');
+        
+        if (!response.ok) {
+            throw new Error('Failed to load files');
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Could not load files');
+        }
+        
+        const data = result.data || [];
+        
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div class="files-grid">
+                    <div class="empty-state">
+                        <div class="icon">📁</div>
+                        <p style="font-size:18px;font-weight:600;">No files available</p>
+                        <p style="font-size:14px;margin-top:5px;">Check back later for updates!</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Group by category
+        const grouped = data.reduce((acc, file) => {
+            const category = file.category || 'Uncategorized';
+            if (!acc[category]) acc[category] = [];
+            acc[category].push(file);
+            return acc;
+        }, {});
+        
+        const sortedCategories = Object.keys(grouped).sort();
+        
+        let html = '<div class="files-grid">';
+        
+        sortedCategories.forEach((category, index) => {
+            // Category Title
+            html += `<div class="category-title">📂 ${category}</div>`;
+            
+            // Files in this category
+            grouped[category].forEach(file => {
+                const isPDF = file.file_url && file.file_url.toLowerCase().includes('.pdf');
+                const isImage = file.file_url && file.file_url.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i);
+                const fileUrl = file.file_url || '#';
+                
+                html += `
+                    <div class="file-card">
+                        <div class="file-icon">${getFileIcon(file.file_type, file.file_url)}</div>
+                        <div class="file-name">${file.file_name || 'Unknown'}</div>
+                        <div class="file-size">${formatFileSize(file.file_size || 0)}</div>
+                        <div class="file-actions">
+                            ${isImage ? `<a href="${fileUrl}" target="_blank" class="view-btn">👁️ View</a>` : ''}
+                            ${isPDF ? `<a href="${fileUrl}" target="_blank" class="view-btn">📄 View PDF</a>` : ''}
+                            ${!isImage && !isPDF ? `<a href="${fileUrl}" target="_blank" class="view-btn">👁️ View</a>` : ''}
+                            <a href="${fileUrl}" download="${file.file_name || 'file'}" class="download-btn">⬇️ Download</a>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Load error:', error);
+        container.innerHTML = `
+            <div class="files-grid">
+                <div class="empty-state" style="color:#dc2626;">
+                    <div class="icon">❌</div>
+                    <p style="font-size:18px;font-weight:600;">Error loading files</p>
+                    <p style="font-size:14px;margin-top:5px;">${error.message}</p>
+                    <button onclick="loadFiles()" style="margin-top:15px;background:#005f5f;color:white;border:none;padding:10px 25px;border-radius:6px;cursor:pointer;font-size:14px;">
+                        🔄 Retry
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Helper: Get file icon
+function getFileIcon(fileType, fileUrl) {
+    if (!fileUrl) return '📄';
+    const url = fileUrl.toLowerCase();
+    if (url.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/)) return '🖼️';
+    if (url.match(/\.(pdf)$/)) return '📕';
+    if (url.match(/\.(doc|docx)$/)) return '📘';
+    if (url.match(/\.(xls|xlsx)$/)) return '📊';
+    if (url.match(/\.(ppt|pptx)$/)) return '📙';
+    if (url.match(/\.(zip|rar|7z)$/)) return '📦';
+    if (url.match(/\.(mp4|avi|mov|wmv|flv|mkv)$/)) return '🎬';
+    if (url.match(/\.(mp3|wav|wma|aac)$/)) return '🎵';
+    if (url.match(/\.(txt|log)$/)) return '📝';
+    if (url.match(/\.(json|xml|yaml|yml)$/)) return '⚙️';
+    if (url.match(/\.(js|ts|jsx|tsx|html|css|scss|php|py|java|cpp|c|go|rb|swift)$/)) return '💻';
+    return '📄';
+}
+
+// Helper: Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Add shake animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+`;
+document.head.appendChild(style);
+
+// Check if password already entered (session)
+window.addEventListener('load', function() {
+    // If password was already entered, you could store in sessionStorage
+    if (sessionStorage.getItem('fileManagerUnlocked') === 'true') {
+        document.getElementById('passwordSection').style.display = 'none';
+        loadFiles();
+    }
+});
+
+// Store unlock status in session
+function verifyPassword() {
+    const input = document.getElementById('passwordInput');
+    const error = document.getElementById('passwordError');
+    const password = input.value.trim();
+    
+    if (password === FILE_PASSWORD) {
+        error.style.display = 'none';
+        document.getElementById('passwordSection').style.display = 'none';
+        sessionStorage.setItem('fileManagerUnlocked', 'true');
+        loadFiles();
+    } else {
+        error.style.display = 'block';
+        input.value = '';
+        input.focus();
+        input.style.animation = 'shake 0.5s ease';
+        setTimeout(() => {
+            input.style.animation = '';
+        }, 500);
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Profile | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header { margin-bottom: 25px; }
+        .header h2 { font-size: 28px; margin-bottom: 7px; }
+        .header p { color: #6b7280; }
+        .form-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.04);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+        input, textarea {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 130px;
+            resize: vertical;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #005f5f;
+        }
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .save-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .save-btn:hover { opacity: 0.9; }
+        .message {
+            display: none;
+            padding: 11px 15px;
+            border-radius: 7px;
+            font-size: 14px;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+        }
+        .loading {
+            color: #6b7280;
+            margin-bottom: 15px;
+        }
+        #imagePreview {
+            margin-top: 10px;
+        }
+        #imagePreview img {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+        }
+        #imagePreview button {
+            display: block;
+            margin-top: 5px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        #imagePreview button:hover {
+            opacity: 0.9;
+        }
+        .file-upload-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-upload-wrapper .upload-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .file-upload-wrapper .upload-btn:hover {
+            opacity: 0.9;
+        }
+        #uploadStatus {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: auto; }
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+<main class="container">
+    <div class="header">
+        <h2>Profile Management</h2>
+        <p>Update the information displayed on your portfolio.</p>
+    </div>
+    <div id="loading" class="loading">Loading profile...</div>
+    <div class="form-card">
+        <form id="profileForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input id="name" type="text">
+                </div>
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input id="title" type="text">
+                </div>
+                <div class="form-group full">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input id="email" type="email">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input id="phone" type="text">
+                </div>
+                <div class="form-group full">
+                    <label for="location">Location</label>
+                    <input id="location" type="text">
+                </div>
+                
+                <!-- ✅ Cloudinary Image Upload Section -->
+                <div class="form-group full">
+                    <label>Profile Image</label>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <input id="profile_image_url" type="url" placeholder="https://example.com/image.jpg" style="flex:1;min-width:200px;">
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span style="color:#6b7280;">OR</span>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="imageUpload" accept="image/*">
+                                <button type="button" class="upload-btn">📤 Upload Image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="uploadStatus"></div>
+                    <div id="imagePreview"></div>
+                </div>
+
+                <div class="form-group full">
+                    <label for="resume_url">Resume URL</label>
+                    <input id="resume_url" type="url">
+                </div>
+                <div class="form-group">
+                    <label for="facebook_url">Facebook URL</label>
+                    <input id="facebook_url" type="url">
+                </div>
+                <div class="form-group">
+                    <label for="linkedin_url">LinkedIn URL</label>
+                    <input id="linkedin_url" type="url">
+                </div>
+                <div class="form-group full">
+                    <label for="github_url">GitHub URL</label>
+                    <input id="github_url" type="url">
+                </div>
+            </div>
+            <div class="actions">
+                <button type="submit" class="save-btn">Save Profile</button>
+                <div id="message" class="message"></div>
+            </div>
+        </form>
+    </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/admin-profile.js"></script>
+</body>
+</html>

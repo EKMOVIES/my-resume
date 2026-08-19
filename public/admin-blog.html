@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Blog | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header { margin-bottom: 25px; }
+        .header h2 { font-size: 28px; margin-bottom: 7px; }
+        .header p { color: #6b7280; }
+        .form-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.04);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+        input, textarea, select {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input {
+            width: auto;
+        }
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .save-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .save-btn:hover { opacity: 0.9; }
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .view-btn {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .message {
+            display: none;
+            padding: 11px 15px;
+            border-radius: 7px;
+            font-size: 14px;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+        }
+        .items-list {
+            display: grid;
+            gap: 15px;
+        }
+        .item-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-content h3 { margin-bottom: 5px; }
+        .item-content .meta {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .item-content .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.published {
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .badge.draft {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .loading { color: #6b7280; margin-bottom: 15px; }
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: auto; }
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+            .item-card { flex-direction: column; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+<main class="container">
+    <div class="header">
+        <h2>Manage Blog</h2>
+        <p>Create and manage your blog posts.</p>
+    </div>
+    <div id="loading" class="loading">Loading posts...</div>
+    <div class="form-card">
+        <h3 id="formTitle">Create New Post</h3>
+        <form id="blogForm">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="title">Title *</label>
+                    <input id="title" type="text" required placeholder="Enter post title">
+                </div>
+                <div class="form-group full">
+                    <label for="slug">Slug * (URL: /blog/your-slug)</label>
+                    <input id="slug" type="text" required placeholder="your-post-slug">
+                </div>
+                <div class="form-group full">
+                    <label for="excerpt">Excerpt (Short description)</label>
+                    <textarea id="excerpt" rows="3" placeholder="Brief summary of the post"></textarea>
+                </div>
+                <div class="form-group full">
+                    <label for="content">Content *</label>
+                    <textarea id="content" rows="10" required placeholder="Write your blog post content here..."></textarea>
+                </div>
+                <div class="form-group full">
+                    <label for="cover_image">Cover Image URL</label>
+                    <input id="cover_image" type="url" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <input id="category" type="text" placeholder="e.g., Web Development">
+                </div>
+                <div class="form-group">
+                    <label for="tags">Tags (comma separated)</label>
+                    <input id="tags" type="text" placeholder="e.g., JavaScript, Node.js, Express">
+                </div>
+                <div class="form-group checkbox-group">
+                    <input id="is_published" type="checkbox">
+                    <label for="is_published">Publish immediately</label>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="submit" class="save-btn">Save Post</button>
+                <button type="button" id="cancelBtn" class="back-btn" style="color:#333;border-color:#d1d5db;">Cancel</button>
+                <div id="message" class="message"></div>
+            </div>
+        </form>
+    </div>
+    <div id="postsList" class="items-list"></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/admin-blog.js"></script>
+</body>
+</html>

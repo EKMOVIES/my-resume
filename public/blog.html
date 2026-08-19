@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="postTitle">Blog Post | My Portfolio</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/skeleton.css">
+    <style>
+        .blog-post {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .blog-post h1 {
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+        .blog-post .meta {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        .blog-post .cover-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        .blog-post .content {
+            line-height: 1.8;
+            font-size: 17px;
+        }
+        .blog-post .content h2 {
+            margin-top: 30px;
+        }
+        .blog-post .content h3 {
+            margin-top: 20px;
+        }
+        .blog-post .content ul, .blog-post .content ol {
+            margin: 15px 0 15px 30px;
+        }
+        .blog-post .tags {
+            margin-top: 30px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .blog-post .tags span {
+            background: #e5e7eb;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+        }
+        .blog-post .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: #005f5f;
+            text-decoration: none;
+        }
+        .blog-post .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Share Buttons */
+        .share-buttons {
+            margin: 30px 0;
+            padding: 20px 0;
+            border-top: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .share-buttons h4 {
+            margin-bottom: 12px;
+            color: #374151;
+        }
+        .share-buttons .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .share-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .share-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .share-btn.facebook { background: #1877f2; }
+        .share-btn.twitter { background: #000000; }
+        .share-btn.linkedin { background: #0a66c2; }
+        .share-btn.whatsapp { background: #25d366; }
+        .share-btn.email { background: #ea4335; }
+        .share-btn.copy { background: #6b7280; }
+        .share-btn.copy.copied { background: #16a34a; }
+        .share-btn .icon { font-size: 18px; }
+        .share-btn .label { font-size: 13px; }
+        @media (max-width: 600px) {
+            .share-btn { padding: 8px 14px; font-size: 13px; }
+            .share-btn .label { display: none; }
+        }
+
+        /* Comments */
+        .comments {
+            margin-top: 50px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 30px;
+        }
+        .comments h3 {
+            margin-bottom: 20px;
+        }
+        .comment {
+            padding: 15px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .comment .name {
+            font-weight: 600;
+        }
+        .comment .date {
+            font-size: 13px;
+            color: #6b7280;
+            margin-left: 10px;
+        }
+        .comment .text {
+            margin-top: 5px;
+        }
+        .comment-form {
+            margin-top: 30px;
+        }
+        .comment-form input, .comment-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-family: inherit;
+        }
+        .comment-form button {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .comment-form button:hover {
+            opacity: 0.9;
+        }
+        .comment-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+        }
+        .comment-status.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .comment-status.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+        }
+
+        /* Skeleton Loading */
+        #loading {
+            text-align: center;
+            padding: 40px;
+        }
+        #loading .skeleton-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container nav">
+        <a class="brand" href="/">ISHTIAK<span>.</span></a>
+        <nav>
+            <a href="/#about">About</a>
+            <a href="/#resume">Resume</a>
+            <a href="/#skills">Skills</a>
+            <a href="/#services">Services</a>
+            <a href="/#projects">Projects</a>
+            <a href="/#blog">Blog</a>
+            <a href="/#contact">Contact</a>
+        </nav>
+        <button class="menu-btn" id="menuBtn">☰</button>
+    </div>
+</header>
+
+<main>
+    <div class="blog-post" id="blogPost">
+        <!-- Skeleton Loading -->
+        <div id="loading">
+            <div class="skeleton-content">
+                <div class="skeleton skeleton-image" style="height:300px;border-radius:12px;"></div>
+                <div class="skeleton skeleton-text skeleton-text-xl" style="margin-top:20px;"></div>
+                <div class="skeleton skeleton-text" style="width:40%;"></div>
+                <div class="skeleton skeleton-text" style="margin-top:15px;"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text" style="width:60%;"></div>
+                <div class="skeleton skeleton-text" style="margin-top:10px;"></div>
+                <div class="skeleton skeleton-text" style="width:50%;"></div>
+            </div>
+        </div>
+
+        <!-- Post Content -->
+        <div id="postContent" style="display:none;">
+            <div id="coverImageContainer"></div>
+            <h1 id="postTitle"></h1>
+            <div class="meta">
+                <span id="postDate"></span>
+                <span id="postViews"></span>
+                <span id="postCategory"></span>
+            </div>
+            <div class="content" id="postContentText"></div>
+            <div class="tags" id="postTags"></div>
+
+            <!-- Share Buttons -->
+            <div class="share-buttons">
+                <h4>📤 Share this article</h4>
+                <div class="buttons">
+                    <button class="share-btn facebook" onclick="shareOnFacebook()">
+                        <span class="icon">📘</span>
+                        <span class="label">Facebook</span>
+                    </button>
+                    <button class="share-btn twitter" onclick="shareOnTwitter()">
+                        <span class="icon">🐦</span>
+                        <span class="label">Twitter</span>
+                    </button>
+                    <button class="share-btn linkedin" onclick="shareOnLinkedIn()">
+                        <span class="icon">🔗</span>
+                        <span class="label">LinkedIn</span>
+                    </button>
+                    <button class="share-btn whatsapp" onclick="shareOnWhatsApp()">
+                        <span class="icon">💬</span>
+                        <span class="label">WhatsApp</span>
+                    </button>
+                    <button class="share-btn email" onclick="shareByEmail()">
+                        <span class="icon">✉️</span>
+                        <span class="label">Email</span>
+                    </button>
+                    <button class="share-btn copy" id="copyLinkBtn" onclick="copyLink()">
+                        <span class="icon">📋</span>
+                        <span class="label">Copy Link</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Comments -->
+            <div class="comments">
+                <h3>Comments</h3>
+                <div id="commentsList"></div>
+
+                <div class="comment-form">
+                    <h4>Leave a Comment</h4>
+                    <form id="commentForm">
+                        <input type="text" id="commentName" placeholder="Your Name *" required>
+                        <input type="email" id="commentEmail" placeholder="Your Email (optional)">
+                        <textarea id="commentText" rows="4" placeholder="Your Comment *" required></textarea>
+                        <button type="submit">Post Comment</button>
+                        <div id="commentStatus" class="comment-status"></div>
+                    </form>
+                </div>
+            </div>
+
+            <a href="/#blog" class="back-link">← Back to Blog</a>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <div class="container">
+        <p>© <span id="year"></span> Ishtiak Hossain. All rights reserved.</p>
+    </div>
+</footer>
+
+<script src="/js/skeleton.js"></script>
+<script>
+// Get slug from URL
+const pathParts = window.location.pathname.split('/');
+const slug = pathParts[pathParts.length - 1] || '';
+
+// Mobile menu
+document.getElementById('menuBtn').addEventListener('click', function() {
+    const nav = document.querySelector('.site-header nav');
+    nav.classList.toggle('active');
+});
+
+// Current year
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// Share Functions
+function getCurrentPageUrl() {
+    return window.location.href;
+}
+
+function getPageTitle() {
+    return document.title || 'My Blog Post';
+}
+
+function shareOnFacebook() {
+    const url = getCurrentPageUrl();
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+}
+
+function shareOnTwitter() {
+    const url = getCurrentPageUrl();
+    const title = getPageTitle();
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+}
+
+function shareOnLinkedIn() {
+    const url = getCurrentPageUrl();
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+}
+
+function shareOnWhatsApp() {
+    const url = getCurrentPageUrl();
+    const title = getPageTitle();
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(title + ' - ' + url)}`, '_blank', 'width=600,height=400');
+}
+
+function shareByEmail() {
+    const url = getCurrentPageUrl();
+    const title = getPageTitle();
+    window.location.href = `mailto:?subject=Check out this post: ${encodeURIComponent(title)}&body=${encodeURIComponent('I thought you might find this interesting:\n\n' + title + '\n' + url)}`;
+}
+
+function copyLink() {
+    const url = getCurrentPageUrl();
+    const btn = document.getElementById('copyLinkBtn');
+    
+    navigator.clipboard.writeText(url).then(() => {
+        btn.innerHTML = '<span class="icon">✅</span><span class="label">Copied!</span>';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.innerHTML = '<span class="icon">📋</span><span class="label">Copy Link</span>';
+            btn.classList.remove('copied');
+        }, 3000);
+    }).catch(() => {
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        btn.innerHTML = '<span class="icon">✅</span><span class="label">Copied!</span>';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.innerHTML = '<span class="icon">📋</span><span class="label">Copy Link</span>';
+            btn.classList.remove('copied');
+        }, 3000);
+    });
+}
+
+// Load post
+async function loadPost() {
+    try {
+        const response = await fetch(`/api/blog/${slug}`);
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.data) {
+            document.getElementById('loading').innerHTML = `
+                <div style="color:#dc2626;padding:40px;">
+                    <p style="font-size:24px;">❌ Post not found.</p>
+                    <a href="/#blog" style="color:#005f5f;text-decoration:none;">← Back to Blog</a>
+                </div>
+            `;
+            return;
+        }
+
+        const post = result.data;
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('postContent').style.display = 'block';
+
+        document.getElementById('postTitle').textContent = post.title;
+        document.title = post.title + ' | My Portfolio';
+
+        document.getElementById('postDate').textContent = '📅 ' + new Date(post.published_at || post.created_at).toLocaleDateString();
+        document.getElementById('postViews').textContent = ' | 👁️ ' + (post.views || 0) + ' views';
+        document.getElementById('postCategory').textContent = post.category ? ' | 📂 ' + post.category : '';
+
+        if (post.cover_image) {
+            document.getElementById('coverImageContainer').innerHTML = `<img src="${post.cover_image}" alt="${post.title}" class="cover-image">`;
+        }
+
+        document.getElementById('postContentText').innerHTML = post.content.replace(/\n/g, '<br>');
+
+        if (post.tags && post.tags.length) {
+            document.getElementById('postTags').innerHTML = post.tags.map(tag => `<span>#${tag}</span>`).join('');
+        }
+
+        loadComments(post.id);
+
+        // Track blog view for analytics
+        trackBlogView(post.title);
+
+    } catch (error) {
+        console.error('Load post error:', error);
+        document.getElementById('loading').innerHTML = `
+            <div style="color:#dc2626;padding:40px;">
+                <p style="font-size:24px;">❌ Error loading post.</p>
+                <p>${error.message}</p>
+                <a href="/#blog" style="color:#005f5f;text-decoration:none;">← Back to Blog</a>
+            </div>
+        `;
+    }
+}
+
+// Track blog view for analytics
+function trackBlogView(postTitle) {
+    try {
+        fetch('/api/analytics/blog-view', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ post_title: postTitle })
+        }).catch(() => {});
+    } catch (e) {}
+}
+
+// Load comments
+async function loadComments(postId) {
+    try {
+        const response = await fetch(`/api/blog/${postId}/comments`);
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            console.error('Could not load comments:', result);
+            return;
+        }
+
+        const container = document.getElementById('commentsList');
+        const data = result.data || [];
+
+        if (data.length === 0) {
+            container.innerHTML = '<p style="color:#6b7280;">No comments yet. Be the first!</p>';
+            return;
+        }
+
+        container.innerHTML = data.map(comment => `
+            <div class="comment">
+                <div>
+                    <span class="name">${comment.name}</span>
+                    <span class="date">${new Date(comment.created_at).toLocaleDateString()}</span>
+                </div>
+                <div class="text">${comment.comment}</div>
+            </div>
+        `).join('');
+
+        const commentForm = document.getElementById('commentForm');
+        const status = document.getElementById('commentStatus');
+
+        commentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('commentName').value.trim();
+            const email = document.getElementById('commentEmail').value.trim();
+            const comment = document.getElementById('commentText').value.trim();
+
+            if (!name || !comment) {
+                status.className = 'comment-status error';
+                status.textContent = '⚠️ Name and comment are required.';
+                status.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/blog/${postId}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, comment })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Could not post comment.');
+                }
+
+                status.className = 'comment-status success';
+                status.textContent = '✅ Comment posted! Awaiting approval.';
+                status.style.display = 'block';
+                commentForm.reset();
+
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+
+            } catch (error) {
+                status.className = 'comment-status error';
+                status.textContent = '❌ ' + error.message;
+                status.style.display = 'block';
+            }
+        });
+
+    } catch (error) {
+        console.error('Load comments error:', error);
+    }
+}
+
+loadPost();
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Cloudinary Upload Test</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f4f6f8;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            width: 400px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        input {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        #status {
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 250px;
+            margin-top: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #imageUrl {
+            margin-top: 15px;
+            word-break: break-all;
+            font-size: 13px;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Cloudinary Test</h1>
+
+    <p>Select an image and upload it.</p>
+
+    <input
+        type="file"
+        id="photo"
+        accept="image/*"
+    >
+
+    <button id="uploadBtn">
+        Upload Photo
+    </button>
+
+    <p id="status"></p>
+
+    <img id="preview" alt="Uploaded Image">
+
+    <p id="imageUrl"></p>
+
+</div>
+
+
+<script>
+
+    // ==============================
+    // CLOUDINARY SETTINGS
+    // ==============================
+
+   const CLOUD_NAME = "https-www-sites-google-com-view-ekmovies";
+const UPLOAD_PRESET = "resume_profiles";
+
+    // ==============================
+    // ELEMENTS
+    // ==============================
+
+    const photoInput = document.getElementById("photo");
+    const uploadBtn = document.getElementById("uploadBtn");
+
+    const status = document.getElementById("status");
+    const preview = document.getElementById("preview");
+    const imageUrl = document.getElementById("imageUrl");
+
+
+    // ==============================
+    // UPLOAD
+    // ==============================
+
+    uploadBtn.addEventListener("click", async () => {
+
+        const file = photoInput.files[0];
+
+        if (!file) {
+
+            status.textContent = "Please select a photo first.";
+
+            return;
+        }
+
+
+        status.textContent = "Uploading...";
+
+        preview.style.display = "none";
+        imageUrl.textContent = "";
+
+
+        const formData = new FormData();
+
+        formData.append("file", file);
+
+        formData.append("upload_preset", UPLOAD_PRESET);
+
+
+        try {
+
+            const response = await fetch(
+                `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+            const data = await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error?.message || "Upload failed"
+                );
+
+            }
+
+
+            // SUCCESS
+
+            status.textContent = "✅ Upload successful!";
+
+
+            // Show image
+
+            preview.src = data.secure_url;
+
+            preview.style.display = "block";
+
+
+            // Show URL
+
+            imageUrl.textContent = data.secure_url;
+
+
+            console.log("Cloudinary Response:", data);
+
+        }
+
+        catch (error) {
+
+            console.error(error);
+
+            status.textContent =
+                "❌ Upload failed: " + error.message;
+
+        }
+
+    });
+
+</script>
+
+</body>
+</html>

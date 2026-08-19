@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Testimonials | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header { margin-bottom: 25px; }
+        .header h2 { font-size: 28px; margin-bottom: 7px; }
+        .header p { color: #6b7280; }
+        .form-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.04);
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+        input, textarea, select {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input {
+            width: auto;
+        }
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .save-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .save-btn:hover { opacity: 0.9; }
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .approve-btn {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .message {
+            display: none;
+            padding: 11px 15px;
+            border-radius: 7px;
+            font-size: 14px;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+        }
+        .items-list {
+            display: grid;
+            gap: 15px;
+        }
+        .item-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .item-content {
+            flex: 1;
+        }
+        .item-content .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .item-content h3 { margin-bottom: 5px; }
+        .item-content .position {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .item-content .message-text {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        .item-content .stars {
+            color: #f59e0b;
+            font-size: 18px;
+        }
+        .item-content .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge.approved {
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .item-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .loading { color: #6b7280; margin-bottom: 15px; }
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: auto; }
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+            .item-card { flex-direction: column; }
+            .item-actions { flex-direction: row; margin-top: 15px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+<main class="container">
+    <div class="header">
+        <h2>Manage Testimonials</h2>
+        <p>Add and manage client testimonials.</p>
+    </div>
+    <div id="loading" class="loading">Loading testimonials...</div>
+    <div class="form-card">
+        <h3 id="formTitle">Add New Testimonial</h3>
+        <form id="testimonialsForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Name *</label>
+                    <input id="name" type="text" required>
+                </div>
+                <div class="form-group">
+                    <label for="position">Position</label>
+                    <input id="position" type="text" placeholder="e.g., CEO">
+                </div>
+                <div class="form-group">
+                    <label for="company">Company</label>
+                    <input id="company" type="text">
+                </div>
+                <div class="form-group">
+                    <label for="avatar_url">Avatar URL</label>
+                    <input id="avatar_url" type="url" placeholder="https://example.com/avatar.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="rating">Rating (1-5)</label>
+                    <input id="rating" type="number" min="1" max="5" value="5">
+                </div>
+                <div class="form-group">
+                    <label for="sort_order">Sort Order</label>
+                    <input id="sort_order" type="number" value="0">
+                </div>
+                <div class="form-group full checkbox-group">
+                    <input id="is_approved" type="checkbox" checked>
+                    <label for="is_approved">Approved (show on website)</label>
+                </div>
+                <div class="form-group full">
+                    <label for="message">Message *</label>
+                    <textarea id="message" required placeholder="What did they say about your work?"></textarea>
+                </div>
+            </div>
+            <div class="actions">
+                <button type="submit" class="save-btn">Save Testimonial</button>
+                <button type="button" id="cancelBtn" class="back-btn" style="color:#333;border-color:#d1d5db;">Cancel</button>
+                <div id="message" class="message"></div>
+            </div>
+        </form>
+    </div>
+    <div id="testimonialsList" class="items-list"></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/admin-testimonials.js"></script>
+</body>
+</html>
