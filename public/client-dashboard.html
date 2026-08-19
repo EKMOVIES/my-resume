@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Dashboard | My Portfolio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            background: #005f5f;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .welcome { margin-bottom: 30px; }
+        .welcome h2 { font-size: 28px; }
+        .welcome p { color: #6b7280; }
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .project-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .project-card .status {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status.active { background: #dcfce7; color: #166534; }
+        .status.completed { background: #dbeafe; color: #1e40af; }
+        .status.pending { background: #fef3c7; color: #92400e; }
+        .project-card h3 { margin: 10px 0 5px; }
+        .project-card p { color: #6b7280; font-size: 14px; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+        .empty { text-align: center; padding: 40px; color: #6b7280; }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #005f5f;
+            text-decoration: none;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .project-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .project-actions button {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-view { background: #005f5f; color: white; }
+        .btn-message { background: #2563eb; color: white; }
+        .btn-files { background: #16a34a; color: white; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>📁 Client Portal</h1>
+    <div class="user-info">
+        <span id="clientName">Loading...</span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</nav>
+<div class="container">
+    <div class="welcome">
+        <h2>👋 Welcome, <span id="welcomeName">Client</span></h2>
+        <p>Your projects and files are here.</p>
+    </div>
+    <div id="projectsContainer">
+        <div class="loading">⏳ Loading your projects...</div>
+    </div>
+    <a href="/" class="back-link">← Back to Home</a>
+</div>
+<script>
+// Check authentication
+const token = localStorage.getItem('clientToken');
+if (!token) {
+    window.location.href = '/client-login.html';
+}
+
+// Get client data
+const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+document.getElementById('clientName').textContent = clientData.name || 'Client';
+document.getElementById('welcomeName').textContent = clientData.name || 'Client';
+
+// Load projects
+async function loadProjects() {
+    const container = document.getElementById('projectsContainer');
+    
+    try {
+        const response = await fetch('/api/client/projects', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.message || 'Could not load projects');
+        }
+        
+        const projects = result.data || [];
+        
+        if (projects.length === 0) {
+            container.innerHTML = `
+                <div class="empty">
+                    <p style="font-size:48px;margin-bottom:10px;">📂</p>
+                    <p style="font-size:18px;font-weight:600;">No projects yet</p>
+                    <p>Your projects will appear here once added.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="projects-grid">
+                ${projects.map(p => `
+                    <div class="project-card" onclick="viewProject('${p.id}')">
+                        <span class="status ${p.status || 'active'}">${p.status || 'Active'}</span>
+                        <h3>${p.project_name}</h3>
+                        <p>${p.project_type || 'Project'}</p>
+                        ${p.description ? `<p style="margin-top:8px;">${p.description.substring(0, 100)}${p.description.length > 100 ? '...' : ''}</p>` : ''}
+                        <div class="project-actions">
+                            <button class="btn-view" onclick="event.stopPropagation();viewProject('${p.id}')">👁️ View</button>
+                            <button class="btn-message" onclick="event.stopPropagation();openMessages('${p.id}')">💬 Messages</button>
+                            <button class="btn-files" onclick="event.stopPropagation();openFiles('${p.id}')">📁 Files</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+    } catch (error) {
+        container.innerHTML = `
+            <div class="empty" style="color:#dc2626;">
+                <p>❌ Error: ${error.message}</p>
+                <button onclick="loadProjects()" style="margin-top:10px;padding:8px 20px;background:#005f5f;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button>
+            </div>
+        `;
+    }
+}
+
+function viewProject(projectId) {
+    window.location.href = `/client-project.html?id=${projectId}`;
+}
+
+function openMessages(projectId) {
+    window.location.href = `/client-project.html?id=${projectId}&tab=messages`;
+}
+
+function openFiles(projectId) {
+    window.location.href = `/client-project.html?id=${projectId}&tab=files`;
+}
+
+function logout() {
+    localStorage.removeItem('clientToken');
+    localStorage.removeItem('clientData');
+    window.location.href = '/client-login.html';
+}
+
+loadProjects();
+</script>
+</body>
+</html>

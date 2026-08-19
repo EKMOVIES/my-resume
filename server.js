@@ -2566,6 +2566,359 @@ app.get('/api/resume/preview', async (req, res) => {
     }
 });
 
+
+
+/* =========================================================
+   👥 CLIENT PORTAL API
+========================================================= */
+
+// Client Login
+app.post('/api/client/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+
+        // Find client by email
+        const { data: client, error } = await supabase
+            .from('clients')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        if (error || !client) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Verify password (simple - in production use bcrypt)
+        if (client.password_hash !== password) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Generate JWT token (using Supabase)
+        const { data: { session }, error: sessionError } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+
+        if (sessionError) {
+            // If Supabase auth not set up, create session manually
+            const token = Buffer.from(`${client.id}:${Date.now()}`).toString('base64');
+            return res.json({
+                success: true,
+                data: {
+                    client: client,
+                    token: token
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                client: client,
+                token: session.access_token
+            }
+        });
+
+    } catch (error) {
+        console.error('Client login error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error'
+        });
+    }
+});
+
+// Client Dashboard - Get Projects
+app.get('/api/client/projects', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.substring(7);
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+
+        // Get client ID from token
+        const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
+
+        const { data, error } = await supabase
+            .from('client_projects')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            data: data || []
+        });
+
+    } catch (error) {
+        console.error('Projects error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load projects'
+        });
+    }
+});
+
+// Client Files
+app.get('/api/client/files/:projectId', async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const token = req.headers.authorization?.substring(7);
+        
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('client_files')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            data: data || []
+        });
+
+    } catch (error) {
+        console.error('Files error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load files'
+        });
+    }
+});
+
+// Client Messages
+app.post('/api/client/message', async (req, res) => {
+    try {
+        const { projectId, message } = req.body;
+        const token = req.headers.authorization?.substring(7);
+        
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+
+        const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
+
+        const { data, error } = await supabase
+            .from('client_messages')
+            .insert({
+                client_id: clientId,
+                project_id: projectId,
+                sender_type: 'client',
+                message: message,
+                is_read: false
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            message: 'Message sent successfully',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Message error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not send message'
+        });
+    }
+});
+
+// Get messages for a project
+app.get('/api/client/messages/:projectId', async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const token = req.headers.authorization?.substring(7);
+        
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('client_messages')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            data: data || []
+        });
+
+    } catch (error) {
+        console.error('Messages error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load messages'
+        });
+    }
+});
+
+// Admin - Get all clients
+app.get('/api/admin/clients', requireAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('clients')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            data: data || []
+        });
+
+    } catch (error) {
+        console.error('Clients error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load clients'
+        });
+    }
+});
+
+// Admin - Create client
+app.post('/api/admin/clients', requireAuth, async (req, res) => {
+    try {
+        const { name, email, password, company, phone } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, email and password are required'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('clients')
+            .insert({
+                name,
+                email,
+                password_hash: password,
+                company,
+                phone
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Client created successfully',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Create client error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not create client'
+        });
+    }
+});
+
+// Admin - Add project to client
+app.post('/api/admin/client-project', requireAuth, async (req, res) => {
+    try {
+        const { clientId, projectName, projectType, description, status, startDate, endDate, budget } = req.body;
+
+        if (!clientId || !projectName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Client ID and project name are required'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('client_projects')
+            .insert({
+                client_id: clientId,
+                project_name: projectName,
+                project_type: projectType || 'Website',
+                description: description || '',
+                status: status || 'active',
+                start_date: startDate || null,
+                end_date: endDate || null,
+                budget: budget || null
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Project added successfully',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Add project error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not add project'
+        });
+    }
+});
+
+
+
+
+
+
 /* =========================================================
    ANALYTICS API
 ========================================================= */

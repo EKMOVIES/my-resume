@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Details | Client Portal</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            background: #005f5f;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .back-link {
+            color: #005f5f;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        .card h2 { margin-bottom: 10px; }
+        .card .status {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status.active { background: #dcfce7; color: #166534; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        .tabs button {
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            border-radius: 6px;
+        }
+        .tabs button.active {
+            background: #005f5f;
+            color: white;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .message-item {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .message-item .sender {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .message-item .time {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .message-item .text { margin-top: 5px; }
+        .message-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .message-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .message-input button {
+            padding: 10px 20px;
+            background: #005f5f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .file-item a {
+            color: #005f5f;
+            text-decoration: none;
+        }
+        .file-item a:hover { text-decoration: underline; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>📁 Project Details</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</nav>
+<div class="container">
+    <a href="/client-dashboard.html" class="back-link">← Back to Dashboard</a>
+    
+    <div id="projectInfo" class="card">
+        <div class="loading">Loading project...</div>
+    </div>
+    
+    <div class="tabs">
+        <button class="active" onclick="switchTab('details')">📋 Details</button>
+        <button onclick="switchTab('messages')">💬 Messages</button>
+        <button onclick="switchTab('files')">📁 Files</button>
+    </div>
+    
+    <div id="tabDetails" class="tab-content active">
+        <div class="card">
+            <h3>Project Details</h3>
+            <div id="detailsContent"></div>
+        </div>
+    </div>
+    
+    <div id="tabMessages" class="tab-content">
+        <div class="card">
+            <h3>💬 Messages</h3>
+            <div id="messagesContainer">
+                <div class="loading">Loading messages...</div>
+            </div>
+            <div class="message-input">
+                <textarea id="messageInput" placeholder="Type your message..." rows="3"></textarea>
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tabFiles" class="tab-content">
+        <div class="card">
+            <h3>📁 Files</h3>
+            <div id="filesContainer">
+                <div class="loading">Loading files...</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+// Get project ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('id');
+const activeTab = urlParams.get('tab') || 'details';
+
+const token = localStorage.getItem('clientToken');
+if (!token) {
+    window.location.href = '/client-login.html';
+}
+
+// Switch tabs
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tabs button').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+    document.querySelector(`.tabs button[onclick="switchTab('${tab}')"]`).classList.add('active');
+}
+
+// Load project details
+async function loadProject() {
+    try {
+        // Get all projects
+        const response = await fetch('/api/client/projects', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        const project = result.data.find(p => p.id === projectId);
+        if (!project) throw new Error('Project not found');
+        
+        // Show project info
+        document.getElementById('projectInfo').innerHTML = `
+            <h2>${project.project_name}</h2>
+            <p><span class="status ${project.status || 'active'}">${project.status || 'Active'}</span></p>
+            <p><strong>Type:</strong> ${project.project_type || 'N/A'}</p>
+            ${project.description ? `<p><strong>Description:</strong> ${project.description}</p>` : ''}
+            ${project.budget ? `<p><strong>Budget:</strong> $${project.budget}</p>` : ''}
+        `;
+        
+        // Load details
+        document.getElementById('detailsContent').innerHTML = `
+            <p><strong>Project ID:</strong> ${project.id}</p>
+            <p><strong>Start Date:</strong> ${project.start_date || 'Not set'}</p>
+            <p><strong>End Date:</strong> ${project.end_date || 'Not set'}</p>
+            <p><strong>Created:</strong> ${new Date(project.created_at).toLocaleDateString()}</p>
+        `;
+        
+        // Load messages
+        loadMessages();
+        
+        // Load files
+        loadFiles();
+        
+    } catch (error) {
+        document.getElementById('projectInfo').innerHTML = `
+            <div style="color:#dc2626;">
+                ❌ Error: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Load messages
+async function loadMessages() {
+    const container = document.getElementById('messagesContainer');
+    
+    try {
+        const response = await fetch(`/api/client/messages/${projectId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        const messages = result.data || [];
+        
+        if (messages.length === 0) {
+            container.innerHTML = '<p style="color:#6b7280;">No messages yet.</p>';
+            return;
+        }
+        
+        container.innerHTML = messages.map(m => `
+            <div class="message-item">
+                <div>
+                    <span class="sender">${m.sender_type === 'admin' ? '👤 Admin' : '👤 You'}</span>
+                    <span class="time">${new Date(m.created_at).toLocaleString()}</span>
+                </div>
+                <div class="text">${m.message}</div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        container.innerHTML = `<p style="color:#dc2626;">Error: ${error.message}</p>`;
+    }
+}
+
+// Send message
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message) {
+        alert('Please enter a message');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/client/message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ projectId, message })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        input.value = '';
+        loadMessages();
+        
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// Load files
+async function loadFiles() {
+    const container = document.getElementById('filesContainer');
+    
+    try {
+        const response = await fetch(`/api/client/files/${projectId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        const files = result.data || [];
+        
+        if (files.length === 0) {
+            container.innerHTML = '<p style="color:#6b7280;">No files uploaded yet.</p>';
+            return;
+        }
+        
+        container.innerHTML = files.map(f => `
+            <div class="file-item">
+                <span>📄 ${f.file_name}</span>
+                <div>
+                    <a href="${f.file_url}" target="_blank">👁️ View</a>
+                    <a href="${f.file_url}" download style="margin-left:10px;">⬇️ Download</a>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        container.innerHTML = `<p style="color:#dc2626;">Error: ${error.message}</p>`;
+    }
+}
+
+function logout() {
+    localStorage.removeItem('clientToken');
+    localStorage.removeItem('clientData');
+    window.location.href = '/client-login.html';
+}
+
+// Load initial tab
+if (activeTab === 'messages') {
+    switchTab('messages');
+} else if (activeTab === 'files') {
+    switchTab('files');
+}
+
+loadProject();
+</script>
+</body>
+</html>
