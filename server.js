@@ -4,8 +4,6 @@ const express = require('express');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const pdf = require('html-pdf');
-const multer = require('multer');
-const fs = require('fs');
 
 // Nodemailer - optional (যদি ইনস্টল থাকে)
 let nodemailer;
@@ -2001,150 +1999,6 @@ app.delete('/api/admin/files/:id', requireAuth, async (req, res) => {
 });
 
 /* =========================================================
-   📁 SERVER FILE UPLOAD (Render Compatible)
-========================================================= */
-
-// ✅ Render-এ Persistent Disk ব্যবহার
-let uploadDir;
-if (process.env.RENDER) {
-    uploadDir = '/data/uploads';
-} else {
-    uploadDir = path.join(__dirname, 'public', 'uploads');
-}
-
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-        cb(null, Date.now() + '-' + cleanName);
-    }
-});
-
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 50 * 1024 * 1024 }
-});
-
-// 📤 Upload File to Server (Admin Only)
-app.post('/api/admin/upload-server', requireAuth, upload.single('file'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({
-                success: false,
-                message: 'No file uploaded'
-            });
-        }
-
-        const { category, description } = req.body;
-        const fileUrl = `/uploads/${req.file.filename}`;
-
-        let fileType = 'document';
-        if (req.file.mimetype.startsWith('image/')) {
-            fileType = 'image';
-        } else if (req.file.mimetype === 'application/pdf') {
-            fileType = 'pdf';
-        }
-
-        const { data, error } = await supabase
-            .from('file_manager')
-            .insert({
-                file_name: req.file.originalname,
-                file_url: fileUrl,
-                file_type: fileType,
-                file_size: req.file.size,
-                category: category || 'Uncategorized',
-                description: description || '',
-                uploaded_by: req.user?.email || 'Admin'
-            })
-            .select()
-            .single();
-
-        if (error) {
-            try { fs.unlinkSync(req.file.path); } catch (e) {}
-            return res.status(500).json({
-                success: false,
-                message: 'Could not save file',
-                error: error.message
-            });
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'File uploaded successfully',
-            data: { ...data, file_url: fileUrl }
-        });
-
-    } catch (error) {
-        console.error('Upload error:', error);
-        if (req.file && fs.existsSync(req.file.path)) {
-            try { fs.unlinkSync(req.file.path); } catch (e) {}
-        }
-        res.status(500).json({
-            success: false,
-            message: 'Could not upload file',
-            error: error.message
-        });
-    }
-});
-
-// 🗑️ Delete File from Server
-app.delete('/api/admin/delete-server-file/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { data: fileData, error: fetchError } = await supabase
-            .from('file_manager')
-            .select('file_url')
-            .eq('id', id)
-            .single();
-
-        if (fetchError) {
-            return res.status(500).json({
-                success: false,
-                message: 'Could not find file'
-            });
-        }
-
-        const { error: deleteError } = await supabase
-            .from('file_manager')
-            .delete()
-            .eq('id', id);
-
-        if (deleteError) {
-            return res.status(500).json({
-                success: false,
-                message: 'Could not delete from database'
-            });
-        }
-
-        if (fileData?.file_url) {
-            const filePath = path.join(uploadDir, path.basename(fileData.file_url));
-            if (fs.existsSync(filePath)) {
-                try { fs.unlinkSync(filePath); } catch (e) {}
-            }
-        }
-
-        res.json({ success: true, message: 'File deleted successfully' });
-
-    } catch (error) {
-        console.error('Delete error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not delete file'
-        });
-    }
-});
-
-// Serve uploaded files
-app.use('/uploads', express.static(uploadDir));
-
-/* =========================================================
    📄 PDF RESUME GENERATOR
 ========================================================= */
 
@@ -2650,14 +2504,12 @@ app.get('/api/client/projects', async (req, res) => {
             });
         }
 
-        let clientId = req.query.clientId; // Admin থেকে clientId পাঠানো হলে
+        let clientId = req.query.clientId;
             
-        // যদি clientId না থাকে, token থেকে নাও
         if (!clientId) {
             clientId = Buffer.from(token, 'base64').toString().split(':')[0];
         }
 
-        // Verify client exists
         const { data: client, error: clientError } = await supabase
             .from('clients')
             .select('id')
@@ -2758,7 +2610,6 @@ app.post('/api/client/message', async (req, res) => {
 
         const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
 
-        // Verify project belongs to client
         const { data: project, error: projectError } = await supabase
             .from('client_projects')
             .select('id')
@@ -2789,7 +2640,6 @@ app.post('/api/client/message', async (req, res) => {
             throw error;
         }
 
-        // Notify admin (optional)
         try {
             await sendAdminNotification({
                 subject: '💬 New Message from Client',
@@ -2832,7 +2682,6 @@ app.get('/api/client/messages/:projectId', async (req, res) => {
 
         const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
 
-        // Verify project belongs to client
         const { data: project, error: projectError } = await supabase
             .from('client_projects')
             .select('id')
@@ -2917,7 +2766,6 @@ app.post('/api/admin/clients', requireAuth, async (req, res) => {
             });
         }
 
-        // Check if email exists
         const { data: existing, error: checkError } = await supabase
             .from('clients')
             .select('email')
@@ -2939,7 +2787,7 @@ app.post('/api/admin/clients', requireAuth, async (req, res) => {
                 password_hash: password,
                 company: company || '',
                 phone: phone || '',
-                status: 'approved' // Admin created clients are auto-approved
+                status: 'approved'
             })
             .select()
             .single();
@@ -2969,7 +2817,6 @@ app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
         const { id } = req.params;
         const { adminNotes } = req.body;
 
-        // Get client email first
         const { data: client, error: fetchError } = await supabase
             .from('clients')
             .select('email, name')
@@ -2998,7 +2845,6 @@ app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
             throw error;
         }
 
-        // Send approval email
         try {
             await sendClientEmail({
                 to: client.email,
@@ -3036,7 +2882,6 @@ app.put('/api/admin/clients/:id/reject', requireAuth, async (req, res) => {
         const { id } = req.params;
         const { rejectionReason } = req.body;
 
-        // Get client email first
         const { data: client, error: fetchError } = await supabase
             .from('clients')
             .select('email, name')
@@ -3065,7 +2910,6 @@ app.put('/api/admin/clients/:id/reject', requireAuth, async (req, res) => {
             throw error;
         }
 
-        // Send rejection email
         try {
             await sendClientEmail({
                 to: client.email,
@@ -3137,7 +2981,6 @@ app.post('/api/admin/client-project', requireAuth, async (req, res) => {
             });
         }
 
-        // Check if client exists
         const { data: client, error: clientError } = await supabase
             .from('clients')
             .select('id')
@@ -3561,7 +3404,6 @@ app.listen(PORT, () => {
     console.log(`🚀 My Resume Portfolio running at http://localhost:${PORT}`);
     console.log('📊 Analytics endpoints enabled');
     console.log('📄 PDF Resume Generator enabled');
-    console.log('📁 Server File Upload enabled');
     console.log('👥 Client Portal API ready');
     console.log('✅ All systems ready!');
 });
