@@ -73,6 +73,15 @@
       border-bottom-color: var(--border-color);
     }
 
+    /* Client Portal Link Style */
+    .client-portal-link {
+      color: #7c3aed !important;
+      font-weight: 700;
+    }
+    .client-portal-link:hover {
+      color: #6d28d9 !important;
+    }
+
     /* File Manager */
     #mainFilesContainer .file-card {
       background: var(--card-bg);
@@ -210,6 +219,36 @@
       color: white;
       text-decoration: none;
     }
+
+    /* Client Portal Section */
+    .client-portal-section {
+      text-align: center;
+      padding: 60px 0;
+    }
+    .client-portal-section h2 {
+      font-size: 32px;
+      margin-bottom: 15px;
+    }
+    .client-portal-section p {
+      max-width: 600px;
+      margin: 0 auto 20px;
+      color: var(--text-secondary);
+    }
+    .client-portal-section .btn-group {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-client {
+      background: #7c3aed;
+      border-color: #7c3aed;
+      color: white;
+    }
+    .btn-client:hover {
+      background: #6d28d9;
+      border-color: #6d28d9;
+    }
   </style>
 </head>
 <body>
@@ -228,6 +267,7 @@
         <a href="#testimonials">Testimonials</a>
         <a href="#files">Files</a>
         <a href="#contact">Contact</a>
+        <a href="/client-login.html" class="client-portal-link">👥 Client Portal</a>
       </nav>
       <div style="display:flex;align-items:center;gap:10px;">
         <button class="dark-toggle" id="darkToggle" aria-label="Toggle dark mode">🌙</button>
@@ -239,41 +279,36 @@
   <main>
 
     <!-- HERO -->
-    <!-- HERO -->
-<section id="home" class="hero">
-  <div class="container hero-grid" id="heroContainer">
-    <div id="heroSkeleton" data-skeleton="hero" data-skeleton-count="1" style="display:none;"></div>
-    <div id="heroContent" style="display:contents;">
-      <div>
-        <p class="eyebrow">PERSONAL RESUME & PORTFOLIO</p>
-        <h1>Hi, I'm <span id="profileName">Loading...</span></h1>
-        <p class="hero-text" id="profileTitle">Loading profile...</p>
-        <div class="actions">
-          <a class="btn primary" href="#projects">View My Work</a>
-          <a class="btn secondary" id="heroResumeLink" href="#" target="_blank" rel="noopener noreferrer">Download CV</a>
-          <!-- ✅ NEW: PDF Resume Button -->
-          <button class="btn primary" onclick="generateAndDownloadPDF()" style="background:#16a34a;border-color:#16a34a;">
-            📄 Download PDF Resume
-          </button>
-        </div>
-        <div style="display:flex;gap:12px;margin-top:25px;">
-          <a id="heroFacebook" href="#" target="_blank" rel="noopener noreferrer" style="color:#1877f2;font-size:24px;text-decoration:none;">📘</a>
-          <a id="heroLinkedin" href="#" target="_blank" rel="noopener noreferrer" style="color:#0a66c2;font-size:24px;text-decoration:none;">🔗</a>
-          <a id="heroGithub" href="#" target="_blank" rel="noopener noreferrer" style="color:#000;font-size:24px;text-decoration:none;">💻</a>
+    <section id="home" class="hero">
+      <div class="container hero-grid" id="heroContainer">
+        <div id="heroSkeleton" data-skeleton="hero" data-skeleton-count="1" style="display:none;"></div>
+        <div id="heroContent" style="display:contents;">
+          <div>
+            <p class="eyebrow">PERSONAL RESUME & PORTFOLIO</p>
+            <h1>Hi, I'm <span id="profileName">Loading...</span></h1>
+            <p class="hero-text" id="profileTitle">Loading profile...</p>
+            <div class="actions">
+              <a class="btn primary" href="#projects">View My Work</a>
+              <a class="btn secondary" id="heroResumeLink" href="#" target="_blank" rel="noopener noreferrer">Download CV</a>
+              <a class="btn primary btn-client" href="/client-login.html">👥 Client Portal</a>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:25px;">
+              <a id="heroFacebook" href="#" target="_blank" rel="noopener noreferrer" style="color:#1877f2;font-size:24px;text-decoration:none;">📘</a>
+              <a id="heroLinkedin" href="#" target="_blank" rel="noopener noreferrer" style="color:#0a66c2;font-size:24px;text-decoration:none;">🔗</a>
+              <a id="heroGithub" href="#" target="_blank" rel="noopener noreferrer" style="color:#000;font-size:24px;text-decoration:none;">💻</a>
+            </div>
+          </div>
+          <div class="hero-card">
+            <div class="avatar" id="profileAvatar">IH</div>
+            <h2 id="profileHeroTitle">Creative Developer</h2>
+            <p id="profileHeroBio">Building websites, designs and digital projects.</p>
+            <a href="/client-login.html" style="display:inline-block;margin-top:15px;padding:10px 20px;background:#7c3aed;color:white;border-radius:8px;text-decoration:none;font-weight:600;">
+              👥 Client Portal
+            </a>
+          </div>
         </div>
       </div>
-      <div class="hero-card">
-        <div class="avatar" id="profileAvatar">IH</div>
-        <h2 id="profileHeroTitle">Creative Developer</h2>
-        <p id="profileHeroBio">Building websites, designs and digital projects.</p>
-        <!-- ✅ NEW: PDF Resume Button in Card -->
-        <button class="btn primary" onclick="generateAndDownloadPDF()" style="background:#16a34a;border-color:#16a34a;margin-top:15px;width:100%;">
-          📄 Download PDF Resume
-        </button>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
     <!-- ABOUT -->
     <section id="about" class="section">
@@ -359,6 +394,22 @@
       </div>
     </section>
 
+    <!-- CLIENT PORTAL PROMOTION -->
+    <section class="section client-portal-section">
+      <div class="container">
+        <p class="eyebrow" style="color:#7c3aed;">CLIENT ACCESS</p>
+        <h2>👥 Client Portal</h2>
+        <p>
+          Existing clients can login to view project progress, download files, and communicate with me.
+        </p>
+        <div class="btn-group">
+          <a href="/client-login.html" class="btn btn-client">🔐 Client Login</a>
+          <a href="/client-signup.html" class="btn primary">📝 Sign Up</a>
+          <a href="#contact" class="btn secondary">📧 Contact Me</a>
+        </div>
+      </div>
+    </section>
+
     <!-- FILE MANAGER -->
     <section id="files" class="section muted">
       <div class="container">
@@ -400,11 +451,10 @@
               <a id="linkedinLink" href="#" target="_blank" rel="noopener noreferrer">LinkedIn</a>
               <a id="githubLink" href="#" target="_blank" rel="noopener noreferrer">GitHub</a>
             </div>
-              <p><a id="resumeLink" class="btn primary" href="#" target="_blank" rel="noopener noreferrer">Download Resume</a></p>
-        <!-- ✅ NEW: PDF Resume Button -->
-        <p><button class="btn primary" onclick="generateAndDownloadPDF()" style="background:#16a34a;border-color:#16a34a;width:100%;">
-          📄 Download PDF Resume
-        </button></p>
+            <p><a id="resumeLink" class="btn primary" href="#" target="_blank" rel="noopener noreferrer">Download Resume</a></p>
+            <p><button class="btn primary" onclick="generateAndDownloadPDF()" style="background:#16a34a;border-color:#16a34a;width:100%;">
+              📄 Download PDF Resume
+            </button></p>
           </div>
           
           <div>
@@ -451,6 +501,11 @@
   <footer>
     <div class="container">
       <p>© <span id="year"></span> <span id="footerName">Ishtiak Hossain</span>. All rights reserved.</p>
+      <p style="margin-top:10px;">
+        <a href="/client-login.html" style="color:#7c3aed;text-decoration:none;">👥 Client Portal</a>
+        |
+        <a href="/admin.html" style="color:#6b7280;text-decoration:none;">🔐 Admin</a>
+      </p>
     </div>
   </footer>
 

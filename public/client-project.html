@@ -18,6 +18,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .navbar h1 { font-size: 20px; }
         .logout-btn {
@@ -28,6 +30,7 @@
             border-radius: 6px;
             cursor: pointer;
         }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
         .container {
             max-width: 900px;
             margin: 30px auto;
@@ -56,12 +59,15 @@
             font-weight: 600;
         }
         .status.active { background: #dcfce7; color: #166534; }
+        .status.completed { background: #dbeafe; color: #1e40af; }
+        .status.pending { background: #fef3c7; color: #92400e; }
         .tabs {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
             border-bottom: 1px solid #e5e7eb;
             padding-bottom: 10px;
+            flex-wrap: wrap;
         }
         .tabs button {
             padding: 8px 20px;
@@ -96,6 +102,7 @@
             display: flex;
             gap: 10px;
             margin-top: 15px;
+            flex-wrap: wrap;
         }
         .message-input textarea {
             flex: 1;
@@ -104,6 +111,7 @@
             border-radius: 8px;
             resize: vertical;
             font-family: inherit;
+            min-width: 200px;
         }
         .message-input button {
             padding: 10px 20px;
@@ -119,6 +127,8 @@
             align-items: center;
             padding: 10px;
             border-bottom: 1px solid #f3f4f6;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .file-item a {
             color: #005f5f;
@@ -126,6 +136,11 @@
         }
         .file-item a:hover { text-decoration: underline; }
         .loading { text-align: center; padding: 40px; color: #6b7280; }
+        .empty { text-align: center; padding: 20px; color: #6b7280; }
+        @media (max-width: 600px) {
+            .navbar { padding: 15px; }
+            .message-input { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
@@ -175,6 +190,7 @@
         </div>
     </div>
 </div>
+
 <script>
 // Get project ID from URL
 const urlParams = new URLSearchParams(window.location.search);
@@ -256,7 +272,7 @@ async function loadMessages() {
         const messages = result.data || [];
         
         if (messages.length === 0) {
-            container.innerHTML = '<p style="color:#6b7280;">No messages yet.</p>';
+            container.innerHTML = '<div class="empty">No messages yet.</div>';
             return;
         }
         
@@ -271,7 +287,7 @@ async function loadMessages() {
         `).join('');
         
     } catch (error) {
-        container.innerHTML = `<p style="color:#dc2626;">Error: ${error.message}</p>`;
+        container.innerHTML = `<div class="empty" style="color:#dc2626;">Error: ${error.message}</div>`;
     }
 }
 
@@ -322,7 +338,7 @@ async function loadFiles() {
         const files = result.data || [];
         
         if (files.length === 0) {
-            container.innerHTML = '<p style="color:#6b7280;">No files uploaded yet.</p>';
+            container.innerHTML = '<div class="empty">No files uploaded yet.</div>';
             return;
         }
         
@@ -337,7 +353,7 @@ async function loadFiles() {
         `).join('');
         
     } catch (error) {
-        container.innerHTML = `<p style="color:#dc2626;">Error: ${error.message}</p>`;
+        container.innerHTML = `<div class="empty" style="color:#dc2626;">Error: ${error.message}</div>`;
     }
 }
 

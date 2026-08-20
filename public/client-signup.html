@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Signup | My Portfolio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f7f9;
+            padding: 20px;
+        }
+        .signup-container {
+            width: 100%;
+            max-width: 450px;
+        }
+        .signup-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        .signup-card h1 {
+            color: #005f5f;
+            margin-bottom: 8px;
+        }
+        .signup-card .subtitle {
+            color: #6b7280;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #005f5f;
+        }
+        .signup-btn {
+            width: 100%;
+            padding: 14px;
+            background: #7c3aed;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .signup-btn:hover { opacity: 0.9; }
+        .signup-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+            border: 1px solid #a7e0b8;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+            border: 1px solid #f5c6c6;
+        }
+        .message.info {
+            display: block;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        .login-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #6b7280;
+            text-decoration: none;
+        }
+        .login-link:hover { color: #005f5f; }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 10px;
+            color: #6b7280;
+            text-decoration: none;
+        }
+        .back-link:hover { color: #005f5f; }
+    </style>
+</head>
+<body>
+<div class="signup-container">
+    <div class="signup-card">
+        <h1>📝 Client Signup</h1>
+        <p class="subtitle">Register to access your projects and files</p>
+        
+        <form id="signupForm">
+            <div class="form-group">
+                <label for="name">Full Name *</label>
+                <input type="text" id="name" required placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label for="email">Email *</label>
+                <input type="email" id="email" required placeholder="client@example.com">
+            </div>
+            <div class="form-group">
+                <label for="password">Password *</label>
+                <input type="password" id="password" required placeholder="Min 6 characters">
+            </div>
+            <div class="form-group">
+                <label for="company">Company</label>
+                <input type="text" id="company" placeholder="ABC Company">
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="text" id="phone" placeholder="+880123456789">
+            </div>
+            <button type="submit" class="signup-btn" id="signupBtn">Create Account</button>
+            <div id="message" class="message"></div>
+        </form>
+        
+        <a href="/client-login.html" class="login-link">Already have an account? Login →</a>
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+</div>
+
+<script>
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const btn = document.getElementById('signupBtn');
+    const msg = document.getElementById('message');
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ Creating account...';
+    msg.className = 'message';
+    msg.style.display = 'none';
+    
+    const data = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        company: document.getElementById('company').value.trim(),
+        phone: document.getElementById('phone').value.trim()
+    };
+    
+    // Validation
+    if (data.password.length < 6) {
+        msg.textContent = '⚠️ Password must be at least 6 characters';
+        msg.className = 'message error';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/client/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.message || 'Signup failed');
+        }
+        
+        // Success!
+        msg.innerHTML = `
+            ✅ ${result.message}<br>
+            <small>You will receive an email when approved.</small>
+        `;
+        msg.className = 'message success';
+        msg.style.display = 'block';
+        
+        document.getElementById('signupForm').reset();
+        btn.textContent = '✅ Account Created!';
+        
+        // Redirect after 3 seconds
+        setTimeout(() => {
+            window.location.href = '/client-login.html';
+        }, 3000);
+        
+    } catch (error) {
+        msg.textContent = '❌ ' + error.message;
+        msg.className = 'message error';
+        msg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+    }
+});
+</script>
+</body>
+</html>

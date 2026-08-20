@@ -3,6 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const pdf = require('html-pdf');
+const multer = require('multer');
+const fs = require('fs');
 
 // Nodemailer - optional (যদি ইনস্টল থাকে)
 let nodemailer;
@@ -13,9 +16,6 @@ try {
     console.warn('⚠️ Nodemailer not installed. Email notifications disabled.');
     nodemailer = null;
 }
-
-// PDF Generator
-const pdf = require('html-pdf');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -110,6 +110,32 @@ async function sendEmailNotification(data) {
         console.error('❌ Email send error:', error.message);
         return false;
     }
+}
+
+async function sendAdminNotification({ subject, html }) {
+    if (!transporter) return;
+    
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER,
+        subject: subject,
+        html: html
+    };
+
+    await transporter.sendMail(mailOptions);
+}
+
+async function sendClientEmail({ to, subject, html }) {
+    if (!transporter) return;
+    
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: to,
+        subject: subject,
+        html: html
+    };
+
+    await transporter.sendMail(mailOptions);
 }
 
 /* =========================================================
@@ -1973,45 +1999,36 @@ app.delete('/api/admin/files/:id', requireAuth, async (req, res) => {
         });
     }
 });
+
 /* =========================================================
-   📁 SERVER FILE UPLOAD (For PDF & All Files)
+   📁 SERVER FILE UPLOAD (Render Compatible)
 ========================================================= */
 
-const multer = require('multer');
-const fs = require('fs');
+// ✅ Render-এ Persistent Disk ব্যবহার
+let uploadDir;
+if (process.env.RENDER) {
+    uploadDir = '/data/uploads';
+} else {
+    uploadDir = path.join(__dirname, 'public', 'uploads');
+}
 
-// Create upload directory
-const uploadDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        // Clean filename: remove special characters, add timestamp
         const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-        const uniqueName = Date.now() + '-' + cleanName;
-        cb(null, uniqueName);
+        cb(null, Date.now() + '-' + cleanName);
     }
 });
 
-// File filter - allow all file types
-const fileFilter = (req, file, cb) => {
-    // Allow all file types
-    cb(null, true);
-};
-
-// Configure multer
 const upload = multer({
     storage: storage,
-    limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB limit
-    },
-    fileFilter: fileFilter
+    limits: { fileSize: 50 * 1024 * 1024 }
 });
 
 // 📤 Upload File to Server (Admin Only)
@@ -2026,18 +2043,14 @@ app.post('/api/admin/upload-server', requireAuth, upload.single('file'), async (
 
         const { category, description } = req.body;
         const fileUrl = `/uploads/${req.file.filename}`;
-        
-        // Determine file type
+
         let fileType = 'document';
         if (req.file.mimetype.startsWith('image/')) {
             fileType = 'image';
         } else if (req.file.mimetype === 'application/pdf') {
             fileType = 'pdf';
-        } else if (req.file.mimetype.includes('word') || req.file.mimetype.includes('document')) {
-            fileType = 'document';
         }
 
-        // Save to database
         const { data, error } = await supabase
             .from('file_manager')
             .insert({
@@ -2047,21 +2060,16 @@ app.post('/api/admin/upload-server', requireAuth, upload.single('file'), async (
                 file_size: req.file.size,
                 category: category || 'Uncategorized',
                 description: description || '',
-                uploaded_by: req.user?.email || 'Admin',
-                created_at: new Date().toISOString()
+                uploaded_by: req.user?.email || 'Admin'
             })
             .select()
             .single();
 
         if (error) {
-            // Delete uploaded file if database error
-            try {
-                fs.unlinkSync(req.file.path);
-            } catch (e) {}
-            console.error('Database error:', error);
+            try { fs.unlinkSync(req.file.path); } catch (e) {}
             return res.status(500).json({
                 success: false,
-                message: 'Could not save file to database',
+                message: 'Could not save file',
                 error: error.message
             });
         }
@@ -2069,19 +2077,13 @@ app.post('/api/admin/upload-server', requireAuth, upload.single('file'), async (
         res.status(201).json({
             success: true,
             message: 'File uploaded successfully',
-            data: {
-                ...data,
-                file_url: fileUrl
-            }
+            data: { ...data, file_url: fileUrl }
         });
 
     } catch (error) {
         console.error('Upload error:', error);
-        // Delete uploaded file if error
         if (req.file && fs.existsSync(req.file.path)) {
-            try {
-                fs.unlinkSync(req.file.path);
-            } catch (e) {}
+            try { fs.unlinkSync(req.file.path); } catch (e) {}
         }
         res.status(500).json({
             success: false,
@@ -2096,7 +2098,6 @@ app.delete('/api/admin/delete-server-file/:id', requireAuth, async (req, res) =>
     try {
         const { id } = req.params;
 
-        // Get file info from database
         const { data: fileData, error: fetchError } = await supabase
             .from('file_manager')
             .select('file_url')
@@ -2106,12 +2107,10 @@ app.delete('/api/admin/delete-server-file/:id', requireAuth, async (req, res) =>
         if (fetchError) {
             return res.status(500).json({
                 success: false,
-                message: 'Could not find file',
-                error: fetchError.message
+                message: 'Could not find file'
             });
         }
 
-        // Delete from database
         const { error: deleteError } = await supabase
             .from('file_manager')
             .delete()
@@ -2120,42 +2119,31 @@ app.delete('/api/admin/delete-server-file/:id', requireAuth, async (req, res) =>
         if (deleteError) {
             return res.status(500).json({
                 success: false,
-                message: 'Could not delete from database',
-                error: deleteError.message
+                message: 'Could not delete from database'
             });
         }
 
-        // Delete physical file from server
         if (fileData?.file_url) {
-            const filePath = path.join(__dirname, 'public', fileData.file_url);
+            const filePath = path.join(uploadDir, path.basename(fileData.file_url));
             if (fs.existsSync(filePath)) {
-                try {
-                    fs.unlinkSync(filePath);
-                } catch (e) {
-                    console.warn('Could not delete physical file:', e.message);
-                }
+                try { fs.unlinkSync(filePath); } catch (e) {}
             }
         }
 
-        res.json({
-            success: true,
-            message: 'File deleted successfully'
-        });
+        res.json({ success: true, message: 'File deleted successfully' });
 
     } catch (error) {
         console.error('Delete error:', error);
         res.status(500).json({
             success: false,
-            message: 'Could not delete file',
-            error: error.message
+            message: 'Could not delete file'
         });
     }
 });
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// Serve uploaded files
+app.use('/uploads', express.static(uploadDir));
 
-console.log('✅ Server File Upload enabled');
 /* =========================================================
    📄 PDF RESUME GENERATOR
 ========================================================= */
@@ -2396,65 +2384,7 @@ function generateResumeHTML(profile, education, experience, skills, projects) {
     `;
 }
 
-// 📄 Generate PDF (Admin Only)
-app.post('/api/resume/generate-pdf', requireAuth, async (req, res) => {
-    try {
-        console.log('📄 Generating PDF...');
-
-        const [profileRes, educationRes, experienceRes, skillsRes, projectsRes] = await Promise.all([
-            supabase.from('profile').select('*').limit(1).maybeSingle(),
-            supabase.from('education').select('*').order('sort_order', { ascending: true }),
-            supabase.from('experience').select('*').order('sort_order', { ascending: true }),
-            supabase.from('skills').select('*').order('sort_order', { ascending: true }),
-            supabase.from('projects').select('*').order('sort_order', { ascending: true })
-        ]);
-
-        const profile = profileRes.data;
-        const education = educationRes.data || [];
-        const experience = experienceRes.data || [];
-        const skills = skillsRes.data || [];
-        const projects = projectsRes.data || [];
-
-        const html = generateResumeHTML(profile, education, experience, skills, projects);
-
-        const options = {
-            format: 'A4',
-            border: {
-                top: '20mm',
-                bottom: '20mm',
-                left: '15mm',
-                right: '15mm'
-            },
-            printBackground: true,
-            timeout: 30000
-        };
-
-        pdf.create(html, options).toBuffer((err, buffer) => {
-            if (err) {
-                console.error('❌ PDF generation error:', err);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Could not generate PDF',
-                    error: err.message
-                });
-            }
-
-            console.log('✅ PDF generated successfully! Size:', buffer.length);
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `attachment; filename="resume_${profile?.name || 'portfolio'}.pdf"`);
-            res.send(buffer);
-        });
-
-    } catch (error) {
-        console.error('❌ PDF generation error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not generate PDF',
-            error: error.message
-        });
-    }
-});
-// 📄 Generate PDF - PUBLIC (No Auth Required)
+// 📄 Generate PDF - Public (No Auth)
 app.post('/api/resume/generate-pdf-public', async (req, res) => {
     try {
         console.log('📄 Generating PDF (Public)...');
@@ -2477,12 +2407,7 @@ app.post('/api/resume/generate-pdf-public', async (req, res) => {
 
         const options = {
             format: 'A4',
-            border: {
-                top: '20mm',
-                bottom: '20mm',
-                left: '15mm',
-                right: '15mm'
-            },
+            border: { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' },
             printBackground: true,
             timeout: 30000
         };
@@ -2497,7 +2422,6 @@ app.post('/api/resume/generate-pdf-public', async (req, res) => {
                 });
             }
 
-            console.log('✅ PDF generated successfully (Public)! Size:', buffer.length);
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="resume_${profile?.name || 'portfolio'}.pdf"`);
             res.send(buffer);
@@ -2512,36 +2436,11 @@ app.post('/api/resume/generate-pdf-public', async (req, res) => {
         });
     }
 });
-// 📄 Preview Resume (Admin Only - Authenticated)
-// 📄 Preview Resume (Admin Only - With Token Support)
-app.get('/api/resume/preview', async (req, res) => {
+
+// 📄 Preview Resume (Admin Only)
+app.get('/api/resume/preview', requireAuth, async (req, res) => {
     try {
-        // Check for token in header OR query parameter
-        let token = req.headers.authorization?.substring(7);
-        
-        // If no header token, check query parameter
-        if (!token && req.query.token) {
-            token = req.query.token;
-        }
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication required.'
-            });
-        }
-        
-        // Verify token
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-        
-        if (error || !user) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid or expired session.'
-            });
-        }
-        
-        console.log('👁️ Loading resume preview for user:', user.email);
+        console.log('👁️ Loading resume preview for user:', req.user?.email);
 
         const [profileRes, educationRes, experienceRes, skillsRes, projectsRes] = await Promise.all([
             supabase.from('profile').select('*').limit(1).maybeSingle(),
@@ -2566,16 +2465,105 @@ app.get('/api/resume/preview', async (req, res) => {
     }
 });
 
-
-
 /* =========================================================
    👥 CLIENT PORTAL API
 ========================================================= */
 
-// Client Login
+console.log('✅ Client Portal API loading...');
+
+// ✅ Client Signup (No Auth Required)
+app.post('/api/client/signup', async (req, res) => {
+    try {
+        const { name, email, password, company, phone } = req.body;
+        console.log('📝 Signup attempt:', { name, email });
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, email and password are required'
+            });
+        }
+
+        // Check if email exists
+        const { data: existing, error: checkError } = await supabase
+            .from('clients')
+            .select('email')
+            .eq('email', email)
+            .single();
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email already registered. Please login.'
+            });
+        }
+
+        // Create client
+        const { data: client, error } = await supabase
+            .from('clients')
+            .insert({
+                name,
+                email,
+                password_hash: password,
+                company: company || '',
+                phone: phone || '',
+                status: 'pending'
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Signup error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not create account'
+            });
+        }
+
+        console.log('✅ Client created:', client.id);
+
+        // Send notification to admin
+        try {
+            await sendAdminNotification({
+                subject: '📝 New Client Signup Request',
+                html: `
+                    <h2>New Client Signup Request</h2>
+                    <p><strong>Name:</strong> ${name}</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Company:</strong> ${company || 'N/A'}</p>
+                    <p><strong>Phone:</strong> ${phone || 'N/A'}</p>
+                    <p><a href="https://your-site.com/admin-clients.html">Approve or Reject</a></p>
+                `
+            });
+        } catch (emailError) {
+            console.warn('Email notification failed:', emailError.message);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Signup successful! Please wait for admin approval.',
+            data: {
+                id: client.id,
+                name: client.name,
+                email: client.email,
+                status: client.status
+            }
+        });
+
+    } catch (error) {
+        console.error('Signup error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error. Please try again.'
+        });
+    }
+});
+
+// ✅ Client Login
 app.post('/api/client/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log('🔐 Login attempt:', { email });
 
         if (!email || !password) {
             return res.status(400).json({
@@ -2584,7 +2572,7 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Find client by email
+        // Find client
         const { data: client, error } = await supabase
             .from('clients')
             .select('*')
@@ -2598,7 +2586,24 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Verify password (simple - in production use bcrypt)
+        // Check status
+        if (client.status === 'pending') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account is pending approval. Please wait.',
+                code: 'PENDING'
+            });
+        }
+
+        if (client.status === 'rejected') {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account was rejected. Contact admin for details.',
+                code: 'REJECTED'
+            });
+        }
+
+        // Verify password
         if (client.password_hash !== password) {
             return res.status(401).json({
                 success: false,
@@ -2606,29 +2611,22 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Generate JWT token (using Supabase)
-        const { data: { session }, error: sessionError } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
-
-        if (sessionError) {
-            // If Supabase auth not set up, create session manually
-            const token = Buffer.from(`${client.id}:${Date.now()}`).toString('base64');
-            return res.json({
-                success: true,
-                data: {
-                    client: client,
-                    token: token
-                }
-            });
-        }
+        // Generate token
+        const token = Buffer.from(`${client.id}:${Date.now()}`).toString('base64');
 
         res.json({
             success: true,
+            message: 'Login successful!',
             data: {
-                client: client,
-                token: session.access_token
+                client: {
+                    id: client.id,
+                    name: client.name,
+                    email: client.email,
+                    company: client.company,
+                    phone: client.phone,
+                    status: client.status
+                },
+                token: token
             }
         });
 
@@ -2641,7 +2639,7 @@ app.post('/api/client/login', async (req, res) => {
     }
 });
 
-// Client Dashboard - Get Projects
+// ✅ Get client projects (for client dashboard)
 app.get('/api/client/projects', async (req, res) => {
     try {
         const token = req.headers.authorization?.substring(7);
@@ -2652,8 +2650,26 @@ app.get('/api/client/projects', async (req, res) => {
             });
         }
 
-        // Get client ID from token
-        const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
+        let clientId = req.query.clientId; // Admin থেকে clientId পাঠানো হলে
+            
+        // যদি clientId না থাকে, token থেকে নাও
+        if (!clientId) {
+            clientId = Buffer.from(token, 'base64').toString().split(':')[0];
+        }
+
+        // Verify client exists
+        const { data: client, error: clientError } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('id', clientId)
+            .single();
+
+        if (clientError || !client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
 
         const { data, error } = await supabase
             .from('client_projects')
@@ -2662,7 +2678,11 @@ app.get('/api/client/projects', async (req, res) => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            throw error;
+            console.error('Projects error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load projects'
+            });
         }
 
         res.json({
@@ -2679,7 +2699,7 @@ app.get('/api/client/projects', async (req, res) => {
     }
 });
 
-// Client Files
+// ✅ Client Files
 app.get('/api/client/files/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
@@ -2716,7 +2736,7 @@ app.get('/api/client/files/:projectId', async (req, res) => {
     }
 });
 
-// Client Messages
+// ✅ Client Send Message
 app.post('/api/client/message', async (req, res) => {
     try {
         const { projectId, message } = req.body;
@@ -2729,7 +2749,29 @@ app.post('/api/client/message', async (req, res) => {
             });
         }
 
+        if (!message || !projectId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Project ID and message are required'
+            });
+        }
+
         const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
+
+        // Verify project belongs to client
+        const { data: project, error: projectError } = await supabase
+            .from('client_projects')
+            .select('id')
+            .eq('id', projectId)
+            .eq('client_id', clientId)
+            .single();
+
+        if (projectError || !project) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to this project'
+            });
+        }
 
         const { data, error } = await supabase
             .from('client_messages')
@@ -2747,6 +2789,19 @@ app.post('/api/client/message', async (req, res) => {
             throw error;
         }
 
+        // Notify admin (optional)
+        try {
+            await sendAdminNotification({
+                subject: '💬 New Message from Client',
+                html: `
+                    <h2>New Message</h2>
+                    <p><strong>Client:</strong> ${clientId}</p>
+                    <p><strong>Project:</strong> ${projectId}</p>
+                    <p><strong>Message:</strong> ${message}</p>
+                `
+            });
+        } catch (e) {}
+
         res.json({
             success: true,
             message: 'Message sent successfully',
@@ -2762,7 +2817,7 @@ app.post('/api/client/message', async (req, res) => {
     }
 });
 
-// Get messages for a project
+// ✅ Get messages for a project
 app.get('/api/client/messages/:projectId', async (req, res) => {
     try {
         const { projectId } = req.params;
@@ -2772,6 +2827,23 @@ app.get('/api/client/messages/:projectId', async (req, res) => {
             return res.status(401).json({
                 success: false,
                 message: 'Authentication required'
+            });
+        }
+
+        const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
+
+        // Verify project belongs to client
+        const { data: project, error: projectError } = await supabase
+            .from('client_projects')
+            .select('id')
+            .eq('id', projectId)
+            .eq('client_id', clientId)
+            .single();
+
+        if (projectError || !project) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have access to this project'
             });
         }
 
@@ -2799,13 +2871,21 @@ app.get('/api/client/messages/:projectId', async (req, res) => {
     }
 });
 
-// Admin - Get all clients
+// ✅ Admin - Get all clients
 app.get('/api/admin/clients', requireAuth, async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { status } = req.query;
+        
+        let query = supabase
             .from('clients')
             .select('*')
             .order('created_at', { ascending: false });
+
+        if (status && status !== 'all') {
+            query = query.eq('status', status);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             throw error;
@@ -2825,7 +2905,7 @@ app.get('/api/admin/clients', requireAuth, async (req, res) => {
     }
 });
 
-// Admin - Create client
+// ✅ Admin - Create client
 app.post('/api/admin/clients', requireAuth, async (req, res) => {
     try {
         const { name, email, password, company, phone } = req.body;
@@ -2837,14 +2917,29 @@ app.post('/api/admin/clients', requireAuth, async (req, res) => {
             });
         }
 
+        // Check if email exists
+        const { data: existing, error: checkError } = await supabase
+            .from('clients')
+            .select('email')
+            .eq('email', email)
+            .single();
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email already exists'
+            });
+        }
+
         const { data, error } = await supabase
             .from('clients')
             .insert({
                 name,
                 email,
                 password_hash: password,
-                company,
-                phone
+                company: company || '',
+                phone: phone || '',
+                status: 'approved' // Admin created clients are auto-approved
             })
             .select()
             .single();
@@ -2868,15 +2963,191 @@ app.post('/api/admin/clients', requireAuth, async (req, res) => {
     }
 });
 
-// Admin - Add project to client
+// ✅ Admin - Approve client
+app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { adminNotes } = req.body;
+
+        // Get client email first
+        const { data: client, error: fetchError } = await supabase
+            .from('clients')
+            .select('email, name')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('clients')
+            .update({
+                status: 'approved',
+                approved_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        // Send approval email
+        try {
+            await sendClientEmail({
+                to: client.email,
+                subject: '✅ Account Approved!',
+                html: `
+                    <h2>Congratulations ${client.name}!</h2>
+                    <p>Your account has been approved by the admin.</p>
+                    <p>You can now login to access your portal:</p>
+                    <p><a href="https://your-site.com/client-login.html">Login Here</a></p>
+                    <p>Email: ${client.email}</p>
+                `
+            });
+        } catch (emailError) {
+            console.warn('Email notification failed:', emailError.message);
+        }
+
+        res.json({
+            success: true,
+            message: 'Client approved successfully',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Approve error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not approve client'
+        });
+    }
+});
+
+// ✅ Admin - Reject client
+app.put('/api/admin/clients/:id/reject', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rejectionReason } = req.body;
+
+        // Get client email first
+        const { data: client, error: fetchError } = await supabase
+            .from('clients')
+            .select('email, name')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('clients')
+            .update({
+                status: 'rejected',
+                rejection_reason: rejectionReason || 'No reason provided',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        // Send rejection email
+        try {
+            await sendClientEmail({
+                to: client.email,
+                subject: '❌ Account Rejected',
+                html: `
+                    <h2>Hello ${client.name},</h2>
+                    <p>We regret to inform you that your account request was rejected.</p>
+                    <p><strong>Reason:</strong> ${rejectionReason || 'No reason provided'}</p>
+                    <p>If you have any questions, please contact the admin.</p>
+                `
+            });
+        } catch (emailError) {
+            console.warn('Email notification failed:', emailError.message);
+        }
+
+        res.json({
+            success: true,
+            message: 'Client rejected',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Reject error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not reject client'
+        });
+    }
+});
+
+// ✅ Admin - Delete client
+app.delete('/api/admin/clients/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('clients')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            message: 'Client deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Delete error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not delete client'
+        });
+    }
+});
+
+// ✅ Admin - Add project to client
 app.post('/api/admin/client-project', requireAuth, async (req, res) => {
     try {
         const { clientId, projectName, projectType, description, status, startDate, endDate, budget } = req.body;
+        console.log('📁 Adding project for client:', clientId);
 
         if (!clientId || !projectName) {
             return res.status(400).json({
                 success: false,
                 message: 'Client ID and project name are required'
+            });
+        }
+
+        // Check if client exists
+        const { data: client, error: clientError } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('id', clientId)
+            .single();
+
+        if (clientError || !client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
             });
         }
 
@@ -2896,9 +3167,14 @@ app.post('/api/admin/client-project', requireAuth, async (req, res) => {
             .single();
 
         if (error) {
-            throw error;
+            console.error('Add project error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not add project: ' + error.message
+            });
         }
 
+        console.log('✅ Project added:', data.id);
         res.status(201).json({
             success: true,
             message: 'Project added successfully',
@@ -2909,15 +3185,13 @@ app.post('/api/admin/client-project', requireAuth, async (req, res) => {
         console.error('Add project error:', error);
         res.status(500).json({
             success: false,
-            message: 'Could not add project'
+            message: 'Could not add project',
+            error: error.message
         });
     }
 });
 
-
-
-
-
+console.log('✅ Client Portal API ready');
 
 /* =========================================================
    ANALYTICS API
@@ -3287,5 +3561,7 @@ app.listen(PORT, () => {
     console.log(`🚀 My Resume Portfolio running at http://localhost:${PORT}`);
     console.log('📊 Analytics endpoints enabled');
     console.log('📄 PDF Resume Generator enabled');
+    console.log('📁 Server File Upload enabled');
+    console.log('👥 Client Portal API ready');
     console.log('✅ All systems ready!');
 });
