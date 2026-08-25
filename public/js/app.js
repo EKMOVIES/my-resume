@@ -188,6 +188,28 @@ async function loadProfile() {
             }
         }
 
+   const heroBio = document.getElementById('profileHeroBio');
+        if (heroBio) {
+            const fullBio = profile.bio || 'Building websites, designs and digital projects.';
+            heroBio.textContent = fullBio;
+            
+            // Check if bio is long enough for show more
+            const bioContainer = document.getElementById('heroBioContainer');
+            const toggleBtn = document.getElementById('heroBioToggle');
+            
+            if (fullBio.length > 100) {
+                // Bio is long - show toggle
+                heroBio.classList.add('bio-collapsed');
+                if (toggleBtn) toggleBtn.style.display = 'inline-block';
+            } else {
+                // Bio is short - hide toggle
+                heroBio.classList.remove('bio-collapsed');
+                if (toggleBtn) toggleBtn.style.display = 'none';
+            }
+        }
+
+
+
         const email = document.getElementById('profileEmail');
         if (email) {
             if (profile.email) {
@@ -244,7 +266,7 @@ async function loadProfile() {
                 heroGithub.style.display = 'none';
             }
         }
-
+    
         setResumeLink('resumeLink', profile.resume_url);
         setResumeLink('heroResumeLink', profile.resume_url);
 
@@ -258,6 +280,25 @@ async function loadProfile() {
     }
 }
 
+
+let bioExpanded = false;
+
+function toggleHeroBio() {
+    const bio = document.getElementById('profileHeroBio');
+    const btn = document.getElementById('heroBioToggle');
+    
+    if (!bio || !btn) return;
+    
+    bioExpanded = !bioExpanded;
+    
+    if (bioExpanded) {
+        bio.classList.remove('bio-collapsed');
+        btn.textContent = 'Show Less';
+    } else {
+        bio.classList.add('bio-collapsed');
+        btn.textContent = 'Show More';
+    }
+}
 /* =========================================================
    LOAD EDUCATION - Updated with better design
 ========================================================= */
@@ -513,6 +554,10 @@ async function loadServices() {
    LOAD PROJECTS
 ========================================================= */
 
+/* =========================================================
+   LOAD PROJECTS - Updated with New Design
+========================================================= */
+
 async function loadProjects() {
     showSkeleton('projectsContainer', 'project', 3);
     
@@ -531,23 +576,15 @@ async function loadProjects() {
 
         const data = result.data || [];
 
+        // ✅ Change container class for grid
+        container.className = 'projects-grid';
+
         if (data.length === 0) {
             container.innerHTML = `
-                <article class="project">
-                    <span>WEB DEVELOPMENT</span>
-                    <h3>FoodHub Restaurant</h3>
-                    <p>Full-stack restaurant website with customer and admin functionality.</p>
-                </article>
-                <article class="project">
-                    <span>GRAPHIC DESIGN</span>
-                    <h3>Design Projects</h3>
-                    <p>Your graphic design work will be displayed here by category.</p>
-                </article>
-                <article class="project">
-                    <span>OTHER PROJECTS</span>
-                    <h3>Future Projects</h3>
-                    <p>More projects can be added later from the Admin Panel.</p>
-                </article>
+                <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-secondary);">
+                    <p style="font-size:18px;">No projects added yet.</p>
+                    <p style="font-size:14px;">Add from Admin Panel</p>
+                </div>
             `;
             hideSkeleton('projectsContainer');
             return;
@@ -556,31 +593,53 @@ async function loadProjects() {
         container.innerHTML = data.map(item => {
             const projectUrl = `${window.location.origin}/project/${item.id}`;
             
+            // ✅ Get first 3 tech tags
+            const techs = item.technologies ? item.technologies.split(',').map(t => t.trim()).slice(0, 3) : [];
+            
+            // ✅ Determine badge color based on project type
+            const badgeText = item.technologies ? item.technologies.split(',')[0].trim() : 'Project';
+            
             const imageHtml = item.image_url ? `
-                <div style="width:100%;height:200px;overflow:hidden;border-radius:8px;margin-bottom:15px;background:#e5e7eb;">
-                    <img src="${item.image_url}" alt="${item.title}" class="project-image" onerror="this.parentElement.style.display='none'">
+                <div class="project-image-wrapper">
+                    <img src="${item.image_url}" alt="${item.title}" class="project-image" loading="lazy" onerror="this.style.display='none'">
+                    <span class="project-badge">${badgeText}</span>
                 </div>
-            ` : '';
+            ` : `
+                <div class="project-image-wrapper" style="background:linear-gradient(135deg,#005f5f,#003d3d);height:200px;display:flex;align-items:center;justify-content:center;">
+                    <span style="font-size:48px;color:rgba(255,255,255,0.3);">🚀</span>
+                    <span class="project-badge">${badgeText}</span>
+                </div>
+            `;
 
             return `
-                <article class="project">
+                <div class="project-card">
                     ${imageHtml}
-                    ${item.technologies ? `<span>${item.technologies.split(',').slice(0, 2).join(', ')}</span>` : '<span>PROJECT</span>'}
-                    <h3>${item.title}</h3>
-                    <p style="flex:1;">${item.description}</p>
-                    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-                        ${item.live_url ? `<a href="${item.live_url}" target="_blank" style="color:#005f5f;text-decoration:none;font-weight:600;font-size:13px;" class="project-link">🔗 Live Demo</a>` : ''}
-                        ${item.github_url ? `<a href="${item.github_url}" target="_blank" style="color:#005f5f;text-decoration:none;font-weight:600;font-size:13px;" class="project-link">💻 GitHub</a>` : ''}
-                    </div>
-                    <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e5e7eb;">
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                            <button onclick="shareProject('facebook', '${item.title}', '${projectUrl}')" style="background:#1877f2;color:white;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;">📘</button>
-                            <button onclick="shareProject('twitter', '${item.title}', '${projectUrl}')" style="background:#000;color:white;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;">🐦</button>
-                            <button onclick="shareProject('linkedin', '${item.title}', '${projectUrl}')" style="background:#0a66c2;color:white;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;">🔗</button>
-                            <button onclick="shareProject('whatsapp', '${item.title}', '${projectUrl}')" style="background:#25d366;color:white;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;">💬</button>
+                    <div class="project-content">
+                        <h3 class="project-title">${item.title || 'Project'}</h3>
+                        
+                        ${techs.length > 0 ? `
+                            <div class="project-tech">
+                                ${techs.map(tech => `<span>${tech}</span>`).join('')}
+                                ${item.technologies && item.technologies.split(',').length > 3 ? `<span>+${item.technologies.split(',').length - 3}</span>` : ''}
+                            </div>
+                        ` : ''}
+                        
+                        <p class="project-description">${item.description || 'No description available.'}</p>
+                        
+                        <div class="project-links">
+                            ${item.live_url ? `<a href="${item.live_url}" target="_blank" rel="noopener noreferrer">🔗 Live Demo</a>` : ''}
+                            ${item.github_url ? `<a href="${item.github_url}" target="_blank" rel="noopener noreferrer" class="github-link">💻 GitHub</a>` : ''}
+                            ${!item.live_url && !item.github_url ? `<span style="color:var(--text-secondary);font-size:13px;">Coming soon</span>` : ''}
+                        </div>
+                        
+                        <div class="project-share">
+                            <button onclick="shareProject('facebook', '${item.title}', '${projectUrl}')">📘</button>
+                            <button onclick="shareProject('twitter', '${item.title}', 'projectUrl}')">🐦</button>
+                            <button onclick="shareProject('linkedin', '${item.title}', '${projectUrl}')">🔗</button>
+                            <button onclick="shareProject('whatsapp', '${item.title}', '${projectUrl}')">💬</button>
                         </div>
                     </div>
-                </article>
+                </div>
             `;
         }).join('');
 

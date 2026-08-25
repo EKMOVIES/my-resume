@@ -313,14 +313,22 @@
               <a id="heroGithub" href="#" target="_blank" rel="noopener noreferrer" style="color:#000;font-size:24px;text-decoration:none;">💻</a>
             </div>
           </div>
-          <div class="hero-card">
-            <div class="avatar" id="profileAvatar">IH</div>
-            <h2 id="profileHeroTitle">Creative Developer</h2>
-            <p id="profileHeroBio">Building websites, designs and digital projects.</p>
-            <a href="/client-login.html" style="display:inline-block;margin-top:15px;padding:10px 20px;background:#7c3aed;color:white;border-radius:8px;text-decoration:none;font-weight:600;">
-              👥 Client Portal
-            </a>
-          </div>
+         <div class="hero-card">
+    <div class="avatar" id="profileAvatar">IH</div>
+    <h2 id="profileHeroTitle">Creative Developer</h2>
+    
+    <!-- ✅ Bio with Show More -->
+    <div class="bio-container" id="heroBioContainer">
+        <p class="bio-text" id="profileHeroBio">
+            Building websites, designs and digital projects.
+        </p>
+        <button class="show-more-btn" id="heroBioToggle" onclick="toggleHeroBio()">
+            Show More
+        </button>
+    </div>
+    
+    
+</div>
         </div>
       </div>
     </section>
@@ -396,15 +404,20 @@
     </section>
 
     <!-- PROJECTS -->
-    <section id="projects" class="section muted">
-      <div class="container">
+  <!-- PROJECTS -->
+<section id="projects" class="section muted">
+    <div class="container">
         <p class="eyebrow">PORTFOLIO</p>
         <h2>My Projects</h2>
+        <p style="color:var(--text-secondary);margin-bottom:10px;">
+            Check out some of my recent work
+        </p>
+        
         <div id="projectsContainer">
-          <div id="projectsSkeleton" data-skeleton="project" data-skeleton-count="3" style="display:none;"></div>
+            <div id="projectsSkeleton" data-skeleton="project" data-skeleton-count="3" style="display:none;"></div>
         </div>
-      </div>
-    </section>
+    </div>
+</section>
 <!-- Lifestyle Section এর নিচে বা Contact এর আগে -->
 
     <!-- BLOG -->
