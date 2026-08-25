@@ -3037,6 +3037,350 @@ app.post('/api/admin/client-project', requireAuth, async (req, res) => {
 console.log('✅ Client Portal API ready');
 
 /* =========================================================
+   📊 DISCIPLINE TRACKER - COMPLETE API
+========================================================= */
+
+// ✅ Get Today's Progress
+app.get('/api/discipline/today', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.substring(7);
+        let userId = null;
+        
+        if (token) {
+            const { data: { user } } = await supabase.auth.getUser(token);
+            userId = user?.id;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        
+        let query = supabase
+            .from('discipline_tracker')
+            .select('*')
+            .eq('date', today);
+
+        if (userId) {
+            query = query.eq('user_id', userId);
+        } else {
+            query = query.order('created_at', { ascending: false }).limit(1);
+        }
+
+        const { data, error } = await query.single();
+
+        if (error && error.code !== 'PGRST116') {
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            data: data || null,
+            message: data ? 'Today\'s progress' : 'No entry for today yet'
+        });
+
+    } catch (error) {
+        console.error('Discipline error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Save Daily Progress (with Day 1 reset)
+app.post('/api/discipline/save', requireAuth, async (req, res) => {
+    try {
+        const { walk_km, gym_minutes, study_minutes, tasks_completed, discipline_rating, image_url, video_url, notes } = req.body;
+        const userId = req.user.id;
+        const today = new Date().toISOString().split('T')[0];
+
+        // Get last entry to check streak
+        const { data: lastEntry, error: lastError } = await supabase
+            .from('discipline_tracker')
+            .select('day_number, date')
+            .eq('user_id', userId)
+            .order('date', { ascending: false })
+            .limit(1);
+
+        let dayNumber = 1;
+        if (lastEntry && lastEntry.length > 0) {
+            const lastDate = new Date(lastEntry[0].date);
+            const todayDate = new Date(today);
+            const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                dayNumber = lastEntry[0].day_number + 1;
+            } else if (diffDays > 1) {
+                dayNumber = 1; // Auto reset to Day 1
+            } else {
+                dayNumber = lastEntry[0].day_number;
+            }
+        }
+
+        const { data, error } = await supabase
+            .from('discipline_tracker')
+            .upsert({
+                user_id: userId,
+                date: today,
+                day_number: dayNumber,
+                walk_km: walk_km || 0,
+                gym_minutes: gym_minutes || 0,
+                study_minutes: study_minutes || 0,
+                tasks_completed: tasks_completed || [],
+                discipline_rating: discipline_rating || 1,
+                image_url: image_url || '',
+                video_url: video_url || '',
+                notes: notes || '',
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Save error:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+
+        res.json({
+            success: true,
+            message: `Day ${dayNumber} saved successfully!`,
+            data: data,
+            streak: dayNumber
+        });
+
+    } catch (error) {
+        console.error('Save discipline error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Get Public Stats
+app.get('/api/discipline/public-stats', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('discipline_tracker')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(30);
+
+        if (error) throw error;
+
+        const stats = {
+            total_days: data.length,
+            current_streak: 0,
+            best_streak: 0,
+            total_walk: 0,
+            total_gym: 0,
+            total_study: 0,
+            avg_rating: 0
+        };
+
+        let streak = 0;
+        let bestStreak = 0;
+        for (let i = 0; i < data.length; i++) {
+            if (data[i].day_number > 0) {
+                streak++;
+                if (streak > bestStreak) bestStreak = streak;
+            } else {
+                streak = 0;
+            }
+        }
+
+        stats.current_streak = streak;
+        stats.best_streak = bestStreak;
+        stats.total_walk = data.reduce((sum, d) => sum + (d.walk_km || 0), 0);
+        stats.total_gym = data.reduce((sum, d) => sum + (d.gym_minutes || 0), 0);
+        stats.total_study = data.reduce((sum, d) => sum + (d.study_minutes || 0), 0);
+        stats.avg_rating = data.length > 0 ? 
+            data.reduce((sum, d) => sum + (d.discipline_rating || 0), 0) / data.length : 0;
+
+        res.json({
+            success: true,
+            stats: stats,
+            recent: data.slice(0, 7)
+        });
+
+    } catch (error) {
+        console.error('Public stats error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Get Motivation Quote
+app.get('/api/discipline/quote', async (req, res) => {
+    try {
+        const { category } = req.query;
+        
+        let query = supabase
+            .from('motivation_quotes')
+            .select('*');
+
+        if (category) {
+            query = query.eq('category', category);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        const randomQuote = data[Math.floor(Math.random() * data.length)];
+
+        res.json({
+            success: true,
+            data: randomQuote
+        });
+
+    } catch (error) {
+        console.error('Quote error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ============================================================
+// 📋 DISCIPLINE TASKS API
+// ============================================================
+
+// ✅ Get all tasks
+// ✅ Get all tasks (with cache bypass)
+app.get('/api/discipline/tasks', requireAuth, async (req, res) => {
+    try {
+        // ✅ No cache header
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        
+        const { data, error } = await supabase
+            .from('discipline_tasks')
+            .select('*')
+            .eq('user_id', req.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+// ✅ Add task
+app.post('/api/discipline/tasks', requireAuth, async (req, res) => {
+    try {
+        const { task_title, task_category, task_description, is_daily } = req.body;
+        
+        if (!task_title) {
+            return res.status(400).json({ success: false, message: 'Task title is required' });
+        }
+
+        const { data, error } = await supabase
+            .from('discipline_tasks')
+            .insert({
+                user_id: req.user.id,
+                task_title,
+                task_category: task_category || 'other',
+                task_description: task_description || '',
+                is_daily: is_daily !== undefined ? is_daily : true,
+                is_completed: false
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Update task
+app.put('/api/discipline/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { task_title, task_category, task_description, is_daily } = req.body;
+
+        const { data, error } = await supabase
+            .from('discipline_tasks')
+            .update({
+                task_title,
+                task_category,
+                task_description,
+                is_daily,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Mark task as complete (with timestamp)
+app.put('/api/discipline/tasks/:id/complete', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const now = new Date().toISOString();
+
+        const { data, error } = await supabase
+            .from('discipline_tasks')
+            .update({
+                is_completed: true,
+                completed_at: now,
+                updated_at: now
+            })
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        
+        // ✅ Return updated data with timestamp
+        res.json({ 
+            success: true, 
+            data: data,
+            timestamp: Date.now()
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Delete task
+app.delete('/api/discipline/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('discipline_tasks')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', req.user.id);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Task deleted' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Get single task
+app.get('/api/discipline/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('discipline_tasks')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/* =========================================================
    ANALYTICS API
 ========================================================= */
 
@@ -3405,5 +3749,6 @@ app.listen(PORT, () => {
     console.log('📊 Analytics endpoints enabled');
     console.log('📄 PDF Resume Generator enabled');
     console.log('👥 Client Portal API ready');
+    console.log('📊 Discipline Tracker API ready');
     console.log('✅ All systems ready!');
 });

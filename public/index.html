@@ -267,6 +267,8 @@
         <a href="#testimonials">Testimonials</a>
         <a href="#files">Files</a>
         <a href="#contact">Contact</a>
+        <a href="/discipline-tracker.html">🔥 Discipline Tracker</a>
+
         <a href="/client-login.html" class="client-portal-link">👥 Client Portal</a>
       </nav>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -323,18 +325,40 @@
     </section>
 
     <!-- RESUME -->
-    <section id="resume" class="section muted">
-      <div class="container">
+    <!-- RESUME - Education & Experience Section -->
+<section id="resume" class="section muted">
+    <div class="container">
         <p class="eyebrow">RESUME</p>
         <h2>Education & Experience</h2>
-        <div id="educationContainer">
-          <div id="educationSkeleton" data-skeleton="timeline" data-skeleton-count="2" style="display:none;"></div>
+        <p style="color:var(--text-secondary);margin-bottom:30px;">
+            My academic journey and professional experience
+        </p>
+        
+        <div class="resume-grid">
+            <!-- Education Column -->
+            <div class="resume-column">
+                <div class="resume-header">
+                    <span class="resume-icon">🎓</span>
+                    <h3>Education</h3>
+                </div>
+                <div id="educationContainer" class="timeline">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Experience Column -->
+            <div class="resume-column">
+                <div class="resume-header">
+                    <span class="resume-icon">💼</span>
+                    <h3>Experience</h3>
+                </div>
+                <div id="experienceContainer" class="timeline">
+                    <!-- Dynamic content will be loaded here -->
+                </div>
+            </div>
         </div>
-        <div id="experienceContainer" style="margin-top:40px;">
-          <div id="experienceSkeleton" data-skeleton="timeline" data-skeleton-count="2" style="display:none;"></div>
-        </div>
-      </div>
-    </section>
+    </div>
+</section>
 
     <!-- SKILLS -->
     <section id="skills" class="section">
@@ -368,6 +392,7 @@
         </div>
       </div>
     </section>
+<!-- Lifestyle Section এর নিচে বা Contact এর আগে -->
 
     <!-- BLOG -->
     <section id="blog" class="section muted">
@@ -382,7 +407,43 @@
         </div>
       </div>
     </section>
+<section id="discipline" class="section muted">
+    <div class="container">
+        <p class="eyebrow">DISCIPLINE</p>
+        <h2>🔥 My Discipline Tracker</h2>
+        <p style="color:var(--text-secondary);margin-bottom:20px;">
+            Consistency is key. Here's my daily progress.
+        </p>
+        
+        <div class="discipline-stats" id="disciplineStats">
+            <div class="stat-item">
+                <span class="number" id="disciplineDays">0</span>
+                <span class="label">Days Tracked</span>
+            </div>
+            <div class="stat-item">
+                <span class="number" id="disciplineStreak">0</span>
+                <span class="label">🔥 Current Streak</span>
+            </div>
+            <div class="stat-item">
+                <span class="number" id="disciplineWalk">0</span>
+                <span class="label">🏃 Total Walk (km)</span>
+            </div>
+            <div class="stat-item">
+                <span class="number" id="disciplineGym">0</span>
+                <span class="label">💪 Total Gym (min)</span>
+            </div>
+        </div>
 
+        <div style="text-align:center;margin-top:25px;">
+            <a href="/discipline-tracker.html" class="btn primary">
+                🔥 View Full Tracker
+            </a>
+            <a href="/admin.html" class="btn secondary" style="margin-left:10px;">
+                🔐 Start Tracking
+            </a>
+        </div>
+    </div>
+</section>
     <!-- TESTIMONIALS -->
     <section id="testimonials" class="section muted">
       <div class="container">

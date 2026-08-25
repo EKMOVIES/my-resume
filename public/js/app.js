@@ -63,7 +63,6 @@ if (darkToggle) {
    SKELETON SCREEN CONTROL
 ========================================================= */
 
-// Show skeleton for a section
 function showSkeleton(containerId, type = 'card', count = 3) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -78,7 +77,6 @@ function showSkeleton(containerId, type = 'card', count = 3) {
         container.prepend(skeletonEl);
     }
     
-    // Use SkeletonManager if available
     if (window.SkeletonManager) {
         window.SkeletonManager.show(skeletonId, type, { count: count });
     } else {
@@ -86,7 +84,6 @@ function showSkeleton(containerId, type = 'card', count = 3) {
     }
 }
 
-// Hide skeleton for a section
 function hideSkeleton(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -177,7 +174,6 @@ async function loadProfile() {
         setText('profileHeroBio', profile.bio, 'Building websites, designs and digital projects.');
         setText('profileLocation', profile.location, 'Location not available');
 
-        /* AVATAR */
         const avatar = document.getElementById('profileAvatar');
         if (avatar) {
             if (profile.profile_image) {
@@ -192,7 +188,6 @@ async function loadProfile() {
             }
         }
 
-        /* EMAIL */
         const email = document.getElementById('profileEmail');
         if (email) {
             if (profile.email) {
@@ -204,7 +199,6 @@ async function loadProfile() {
             }
         }
 
-        /* PHONE */
         const phone = document.getElementById('profilePhone');
         if (phone) {
             if (profile.phone) {
@@ -216,12 +210,10 @@ async function loadProfile() {
             }
         }
 
-        /* SOCIAL LINKS */
         setSocialLink('facebookLink', profile.facebook_url);
         setSocialLink('linkedinLink', profile.linkedin_url);
         setSocialLink('githubLink', profile.github_url);
 
-        /* HERO SOCIAL LINKS */
         const heroFacebook = document.getElementById('heroFacebook');
         const heroLinkedin = document.getElementById('heroLinkedin');
         const heroGithub = document.getElementById('heroGithub');
@@ -253,7 +245,6 @@ async function loadProfile() {
             }
         }
 
-        /* RESUME LINKS */
         setResumeLink('resumeLink', profile.resume_url);
         setResumeLink('heroResumeLink', profile.resume_url);
 
@@ -268,7 +259,7 @@ async function loadProfile() {
 }
 
 /* =========================================================
-   LOAD EDUCATION
+   LOAD EDUCATION - Updated with better design
 ========================================================= */
 
 async function loadEducation() {
@@ -291,24 +282,27 @@ async function loadEducation() {
 
         if (data.length === 0) {
             container.innerHTML = `
-                <article>
-                    <strong>Education</strong>
-                    <p>Your education history will be managed from the Admin Panel.</p>
-                </article>
+                <div class="timeline-item education" style="text-align:center;padding:20px;color:var(--text-secondary);">
+                    <p>No education added yet.</p>
+                    <p style="font-size:13px;">Add from Admin Panel</p>
+                </div>
             `;
             hideSkeleton('educationContainer');
             return;
         }
 
-        container.innerHTML = data.map(item => `
-            <article>
-                <strong>${item.institution}</strong>
-                <p><strong>${item.degree}</strong></p>
-                <p style="font-size:14px;color:#6b7280;">
+        const sortedData = [...data].sort((a, b) => (b.start_year || 0) - (a.start_year || 0));
+
+        container.innerHTML = sortedData.map(item => `
+            <div class="timeline-item education">
+                <span class="timeline-date">
                     ${item.start_year || ''} ${item.end_year ? '- ' + item.end_year : ''}
-                </p>
-                ${item.description ? `<p style="margin-top:8px;">${item.description}</p>` : ''}
-            </article>
+                    ${!item.end_year ? '<span class="timeline-badge">Ongoing</span>' : ''}
+                </span>
+                <div class="timeline-institution">${item.institution || 'Institution'}</div>
+                <div class="timeline-degree">${item.degree || 'Degree'}</div>
+                ${item.description ? `<div class="timeline-description">${item.description}</div>` : ''}
+            </div>
         `).join('');
 
         hideSkeleton('educationContainer');
@@ -320,7 +314,7 @@ async function loadEducation() {
 }
 
 /* =========================================================
-   LOAD EXPERIENCE
+   LOAD EXPERIENCE - Updated with better design
 ========================================================= */
 
 async function loadExperience() {
@@ -343,25 +337,32 @@ async function loadExperience() {
 
         if (data.length === 0) {
             container.innerHTML = `
-                <article>
-                    <strong>Experience</strong>
-                    <p>Your professional experience will be managed from the Admin Panel.</p>
-                </article>
+                <div class="timeline-item experience" style="text-align:center;padding:20px;color:var(--text-secondary);">
+                    <p>No experience added yet.</p>
+                    <p style="font-size:13px;">Add from Admin Panel</p>
+                </div>
             `;
             hideSkeleton('experienceContainer');
             return;
         }
 
-        container.innerHTML = data.map(item => `
-            <article>
-                <strong>${item.company}</strong>
-                <p><strong>${item.job_title}</strong></p>
-                <p style="font-size:14px;color:#6b7280;">
+        const sortedData = [...data].sort((a, b) => {
+            const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
+            const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
+            return dateB - dateA;
+        });
+
+        container.innerHTML = sortedData.map(item => `
+            <div class="timeline-item experience">
+                <span class="timeline-date">
                     ${item.start_date ? new Date(item.start_date).getFullYear() : ''} 
                     ${item.end_date ? '- ' + new Date(item.end_date).getFullYear() : ''}
-                </p>
-                ${item.description ? `<p style="margin-top:8px;">${item.description}</p>` : ''}
-            </article>
+                    ${!item.end_date ? '<span class="timeline-badge">Ongoing</span>' : ''}
+                </span>
+                <div class="timeline-institution">${item.company || 'Company'}</div>
+                <div class="timeline-degree">${item.job_title || 'Position'}</div>
+                ${item.description ? `<div class="timeline-description">${item.description}</div>` : ''}
+            </div>
         `).join('');
 
         hideSkeleton('experienceContainer');
@@ -922,7 +923,6 @@ if (contactForm) {
                 throw new Error(result.message || 'Could not send message.');
             }
 
-            // Track contact submission
             trackContactSubmission();
 
             status.style.display = 'block';
@@ -1039,7 +1039,6 @@ document.addEventListener('click', function(e) {
    ⭐ ANALYTICS TRACKING
 ========================================================= */
 
-// Track page views
 function trackPageView() {
     try {
         const page = window.location.pathname;
@@ -1051,12 +1050,9 @@ function trackPageView() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ page, referrer, user_agent })
         }).catch(() => {});
-    } catch (e) {
-        // Silent fail - analytics should not break the site
-    }
+    } catch (e) {}
 }
 
-// Track resume download
 function trackResumeDownload() {
     try {
         fetch('/api/analytics/resume-download', {
@@ -1066,7 +1062,6 @@ function trackResumeDownload() {
     } catch (e) {}
 }
 
-// Track project click
 function trackProjectClick(projectTitle, linkType = 'click') {
     try {
         fetch('/api/analytics/project-click', {
@@ -1080,7 +1075,6 @@ function trackProjectClick(projectTitle, linkType = 'click') {
     } catch (e) {}
 }
 
-// Track blog view
 function trackBlogView(postTitle) {
     try {
         fetch('/api/analytics/blog-view', {
@@ -1091,7 +1085,6 @@ function trackBlogView(postTitle) {
     } catch (e) {}
 }
 
-// Track contact form submission
 function trackContactSubmission() {
     try {
         fetch('/api/analytics/contact-submission', {
@@ -1101,18 +1094,14 @@ function trackContactSubmission() {
     } catch (e) {}
 }
 
-// Auto-track page views when DOM loads
 if (typeof document !== 'undefined') {
     document.addEventListener('DOMContentLoaded', () => {
-        // Track initial page view
         setTimeout(trackPageView, 500);
         console.log('✅ Analytics: Page view tracked');
     });
 }
 
-// Track resume downloads
 document.addEventListener('click', (e) => {
-    // Resume download links
     const resumeLink = e.target.closest('#resumeLink, #heroResumeLink');
     if (resumeLink) {
         setTimeout(() => {
@@ -1121,7 +1110,6 @@ document.addEventListener('click', (e) => {
         }, 100);
     }
 
-    // Project clicks
     const projectCard = e.target.closest('.project');
     if (projectCard) {
         const title = projectCard.querySelector('h3')?.textContent || 'Unknown';
@@ -1132,7 +1120,6 @@ document.addEventListener('click', (e) => {
         }, 100);
     }
 
-    // Blog links
     const blogLink = e.target.closest('.blog-link');
     if (blogLink) {
         const postTitle = blogLink.closest('.card')?.querySelector('h3')?.textContent || 'Unknown';
@@ -1142,99 +1129,39 @@ document.addEventListener('click', (e) => {
         }, 100);
     }
 });
+
 /* =========================================================
-   📄 PDF RESUME DOWNLOAD - Main Page
+   🔥 DISCIPLINE TRACKER - Public Stats
 ========================================================= */
 
-// Generate and Download PDF from Main Page
-/* =========================================================
-   📄 PDF RESUME DOWNLOAD - Main Page (No Login Required)
-========================================================= */
-
-// Generate and Download PDF from Main Page - NO LOGIN REQUIRED
-async function generateAndDownloadPDF() {
-    // Show loading status
-    showPDFStatus('⏳ Generating PDF... Please wait.', 'loading');
-    
+async function loadDisciplinePublic() {
     try {
-        // Direct API call - no auth needed
-        const response = await fetch('/api/resume/generate-pdf-public', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        const response = await fetch('/api/discipline/public-stats');
+        const result = await response.json();
         
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Could not generate PDF');
-        }
+        if (!response.ok) throw new Error(result.message);
         
-        // Download the PDF
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'resume.pdf';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        const stats = result.stats || {};
         
-        showPDFStatus('✅ PDF downloaded successfully!', 'success');
+        const daysEl = document.getElementById('disciplineDays');
+        const streakEl = document.getElementById('disciplineStreak');
+        const walkEl = document.getElementById('disciplineWalk');
+        const gymEl = document.getElementById('disciplineGym');
+        
+        if (daysEl) daysEl.textContent = stats.total_days || 0;
+        if (streakEl) streakEl.textContent = stats.current_streak || 0;
+        if (walkEl) walkEl.textContent = stats.total_walk || 0;
+        if (gymEl) gymEl.textContent = stats.total_gym || 0;
         
     } catch (error) {
-        console.error('Error:', error);
-        showPDFStatus('❌ ' + error.message, 'error');
+        console.error('Discipline stats error:', error);
     }
 }
 
-// Show PDF status message
-function showPDFStatus(message, type) {
-    let statusEl = document.getElementById('pdfStatus');
-    if (!statusEl) {
-        statusEl = document.createElement('div');
-        statusEl.id = 'pdfStatus';
-        statusEl.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-weight: 600;
-            z-index: 9999;
-            max-width: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            display: none;
-            animation: slideIn 0.3s ease;
-        `;
-        document.body.appendChild(statusEl);
-    }
-    
-    const styles = {
-        loading: { background: '#e5f0ff', color: '#1e40af', border: '1px solid #b8d4f5' },
-        success: { background: '#e7f7ef', color: '#147a43', border: '1px solid #a7e0b8' },
-        error: { background: '#fdecec', color: '#b42318', border: '1px solid #f5c6c6' },
-        info: { background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }
-    };
-    
-    const style = styles[type] || styles.info;
-    statusEl.style.background = style.background;
-    statusEl.style.color = style.color;
-    statusEl.style.border = style.border;
-    statusEl.textContent = message;
-    statusEl.style.display = 'block';
-    
-    clearTimeout(statusEl._timeout);
-    statusEl._timeout = setTimeout(() => {
-        statusEl.style.display = 'none';
-    }, 5000);
-}
 /* =========================================================
    START - Load Everything
 ========================================================= */
 
-// Load all content with skeletons
 loadProfile();
 loadEducation();
 loadExperience();
@@ -1243,6 +1170,10 @@ loadServices();
 loadProjects();
 loadTestimonials();
 loadBlogPosts();
+
+if (document.getElementById('disciplineStats')) {
+    loadDisciplinePublic();
+}
 
 console.log('🚀 My Resume Portfolio - All systems ready!');
 console.log('📊 Analytics tracking enabled');

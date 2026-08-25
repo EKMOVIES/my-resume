@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discipline Tracker | My Portfolio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: #005f5f;
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; }
+        .header .streak-badge {
+            display: inline-block;
+            background: #f59e0b;
+            color: #1f2937;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.04);
+            border: 1px solid #e5e7eb;
+        }
+        .card h3 { margin-bottom: 15px; color: #005f5f; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-primary {
+            background: #005f5f;
+            color: white;
+            width: 100%;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .rating-stars {
+            display: flex;
+            gap: 8px;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        .rating-stars span {
+            transition: all 0.3s;
+        }
+        .rating-stars span:hover { transform: scale(1.2); }
+        .rating-stars span.active { color: #f59e0b; }
+        .rating-stars span.inactive { color: #d1d5db; }
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .progress-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+        .progress-item .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #005f5f;
+        }
+        .progress-item .label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .quote-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-style: italic;
+        }
+        .quote-box .author {
+            font-weight: 600;
+            margin-top: 5px;
+            font-style: normal;
+        }
+        .media-preview {
+            margin-top: 10px;
+        }
+        .media-preview img {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            object-fit: cover;
+        }
+        .media-preview iframe {
+            width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+        }
+        .login-required {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        .login-required .btn {
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        /* Task Styles */
+        .task-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-item .task-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .task-item .task-title .task-done {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.fitness { background: #dbeafe; color: #1e40af; }
+        .badge.study { background: #dcfce7; color: #166534; }
+        .badge.work { background: #fef3c7; color: #92400e; }
+        .badge.personal { background: #fce4ec; color: #c62828; }
+        .badge.other { background: #e8e8e8; color: #4a4a4a; }
+        .task-status {
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .task-status.done { color: #10b981; }
+        .task-status.pending { color: #f59e0b; }
+        
+        .task-link {
+            color: #005f5f;
+            text-decoration: none;
+        }
+        .task-link:hover { text-decoration: underline; }
+        .empty-tasks {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+        }
+        .refresh-btn {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .refresh-btn:hover { opacity: 0.9; }
+
+        @media (max-width: 600px) {
+            .form-row { grid-template-columns: 1fr; }
+            .progress-grid { grid-template-columns: repeat(2, 1fr); }
+            .header h1 { font-size: 24px; }
+            .rating-stars { font-size: 24px; }
+            .task-item { flex-direction: column; gap: 8px; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <!-- Header -->
+    <div class="header">
+        <h1>🔥 Discipline Tracker</h1>
+        <p>Day <span id="dayNumber">1</span> of Consistency</p>
+        <div class="streak-badge" id="streakBadge">⚡ Current Streak: <span id="streakCount">0</span> days</div>
+    </div>
+
+    <!-- Login Required -->
+    <div id="loginRequired" class="login-required card">
+        <p>🔐 Please login to track your daily discipline</p>
+        <a href="/admin.html" class="btn btn-primary" style="width:auto;">Login Now</a>
+    </div>
+
+    <!-- Tracker Form -->
+    <div id="trackerForm" style="display:none;">
+        <div class="card">
+            <h3>📝 Today's Progress</h3>
+            <div class="quote-box" id="dailyQuote">
+                <p id="quoteText">Loading motivation...</p>
+                <div class="author" id="quoteAuthor">- Unknown</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🏃 Walk (km)</label>
+                    <input type="number" id="walkKm" step="0.1" min="0" placeholder="0.0">
+                </div>
+                <div class="form-group">
+                    <label>💪 Gym (minutes)</label>
+                    <input type="number" id="gymMinutes" min="0" placeholder="0">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>📚 Study (minutes)</label>
+                <input type="number" id="studyMinutes" min="0" placeholder="0">
+            </div>
+            
+            <div class="form-group">
+                <label>✅ Tasks Completed (comma separated)</label>
+                <input type="text" id="tasksCompleted" placeholder="e.g., Task 1, Task 2, Task 3">
+            </div>
+            
+            <div class="form-group">
+                <label>⭐ Discipline Rating (1-10)</label>
+                <div class="rating-stars" id="ratingStars">
+                    <span data-value="1">⭐</span>
+                    <span data-value="2">⭐</span>
+                    <span data-value="3">⭐</span>
+                    <span data-value="4">⭐</span>
+                    <span data-value="5">⭐</span>
+                    <span data-value="6">⭐</span>
+                    <span data-value="7">⭐</span>
+                    <span data-value="8">⭐</span>
+                    <span data-value="9">⭐</span>
+                    <span data-value="10">⭐</span>
+                </div>
+                <input type="hidden" id="ratingValue" value="1">
+            </div>
+            
+            <div class="form-group">
+                <label>📷 Image URL</label>
+                <input type="url" id="imageUrl" placeholder="https://example.com/image.jpg">
+                <div class="media-preview" id="imagePreview"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>🎥 Video URL (YouTube/Vimeo)</label>
+                <input type="url" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+                <div class="media-preview" id="videoPreview"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>📝 Notes</label>
+                <textarea id="notes" placeholder="Any thoughts about today..."></textarea>
+            </div>
+            
+            <button class="btn btn-primary" id="saveBtn" onclick="saveProgress()">
+                💾 Save Today's Progress
+            </button>
+            <div id="saveMessage" style="margin-top:10px;display:none;padding:10px;border-radius:6px;"></div>
+        </div>
+
+        <!-- Today's Tasks -->
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h3 style="margin:0;">📋 Today's Tasks</h3>
+                <div>
+                    <button class="refresh-btn" onclick="loadTodayTasks()">🔄 Refresh</button>
+                    <button class="refresh-btn" onclick="window.location.reload()" style="background:#005f5f;margin-left:5px;">⟳ Reload</button>
+                </div>
+            </div>
+            <div id="todayTasks">
+                <p style="color:#6b7280;text-align:center;padding:10px;">Loading tasks...</p>
+            </div>
+            <small style="color:#6b7280;display:block;margin-top:10px;">
+                💡 Manage tasks from <a href="/admin-discipline-tasks.html" class="task-link">Admin Panel</a>
+            </small>
+        </div>
+    </div>
+
+    <!-- Public Stats -->
+    <div class="card">
+        <h3>📊 Public Progress</h3>
+        <div class="progress-grid">
+            <div class="progress-item">
+                <div class="number" id="totalDays">0</div>
+                <div class="label">Total Days</div>
+            </div>
+            <div class="progress-item">
+                <div class="number" id="totalWalk">0</div>
+                <div class="label">Total Walk (km)</div>
+            </div>
+            <div class="progress-item">
+                <div class="number" id="totalGym">0</div>
+                <div class="label">Total Gym (min)</div>
+            </div>
+            <div class="progress-item">
+                <div class="number" id="totalStudy">0</div>
+                <div class="label">Total Study (min)</div>
+            </div>
+        </div>
+        <div id="recentEntries" style="margin-top:15px;">
+            <p style="color:#6b7280;text-align:center;">No entries yet. Be the first!</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// State
+let currentDay = 1;
+let currentStreak = 0;
+let selectedRating = 1;
+let isLoggedIn = false;
+let token = null;
+
+// Check login status
+async function checkAuth() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        isLoggedIn = true;
+        token = session.access_token;
+        document.getElementById('loginRequired').style.display = 'none';
+        document.getElementById('trackerForm').style.display = 'block';
+        loadToday();
+        loadTodayTasks();
+    } else {
+        document.getElementById('loginRequired').style.display = 'block';
+        document.getElementById('trackerForm').style.display = 'none';
+    }
+}
+
+// Load today's progress
+async function loadToday() {
+    try {
+        const response = await fetch('/api/discipline/today', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const data = result.data;
+            document.getElementById('walkKm').value = data.walk_km || '';
+            document.getElementById('gymMinutes').value = data.gym_minutes || '';
+            document.getElementById('studyMinutes').value = data.study_minutes || '';
+            document.getElementById('tasksCompleted').value = (data.tasks_completed || []).join(', ');
+            document.getElementById('ratingValue').value = data.discipline_rating || 1;
+            document.getElementById('notes').value = data.notes || '';
+            if (data.image_url) {
+                document.getElementById('imageUrl').value = data.image_url;
+                previewImage(data.image_url);
+            }
+            if (data.video_url) {
+                document.getElementById('videoUrl').value = data.video_url;
+                previewVideo(data.video_url);
+            }
+            setRating(data.discipline_rating || 1);
+            currentDay = data.day_number || 1;
+            document.getElementById('dayNumber').textContent = currentDay;
+        }
+    } catch (error) {
+        console.error('Load today error:', error);
+    }
+}
+
+// ✅ Load today's tasks - NO CACHE
+async function loadTodayTasks() {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            console.log('No session found');
+            return;
+        }
+        
+        const response = await fetch('/api/discipline/tasks', {
+            headers: { 
+                'Authorization': `Bearer ${session.access_token}`,
+                'Cache-Control': 'no-cache'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        const tasks = result.data || [];
+        const container = document.getElementById('todayTasks');
+        
+        if (tasks.length === 0) {
+            container.innerHTML = `
+                <div class="empty-tasks">
+                    <p>📭 No tasks for today.</p>
+                    <p style="font-size:14px;margin-top:5px;">
+                        <a href="/admin-discipline-tasks.html" class="task-link">Add some from Admin Panel →</a>
+                    </p>
+                </div>
+            `;
+            return;
+        }
+        
+        // ✅ Pending first, then completed
+        const sortedTasks = [...tasks].sort((a, b) => {
+            if (a.is_completed === b.is_completed) return 0;
+            return a.is_completed ? 1 : -1;
+        });
+        
+        container.innerHTML = sortedTasks.map(task => `
+            <div class="task-item">
+                <div class="task-title">
+                    <span style="font-size:18px;">${task.is_completed ? '✅' : '⏳'}</span>
+                    <span class="${task.is_completed ? 'task-done' : ''}">${task.task_title}</span>
+                    <span class="badge ${task.task_category}">${task.task_category}</span>
+                </div>
+                <div>
+                    <span class="task-status ${task.is_completed ? 'done' : 'pending'}">
+                        ${task.is_completed ? '✅ Done' : '⏳ Pending'}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+        
+        // ✅ Update streak from completed tasks
+        const completedCount = tasks.filter(t => t.is_completed).length;
+        if (completedCount > 0) {
+            document.getElementById('streakCount').textContent = completedCount;
+        }
+        
+    } catch (error) {
+        console.error('Load tasks error:', error);
+        document.getElementById('todayTasks').innerHTML = `
+            <div class="empty-tasks" style="color:#dc2626;">
+                ❌ Error loading tasks: ${error.message}
+                <button onclick="loadTodayTasks()" style="margin-left:10px;padding:4px 12px;border-radius:4px;border:1px solid #dc2626;background:transparent;cursor:pointer;">Retry</button>
+            </div>
+        `;
+    }
+}
+
+// Rating stars
+document.querySelectorAll('#ratingStars span').forEach(star => {
+    star.addEventListener('click', function() {
+        const value = parseInt(this.dataset.value);
+        setRating(value);
+    });
+    star.addEventListener('mouseenter', function() {
+        const value = parseInt(this.dataset.value);
+        highlightStars(value);
+    });
+    star.addEventListener('mouseleave', function() {
+        const value = parseInt(document.getElementById('ratingValue').value);
+        highlightStars(value);
+    });
+});
+
+function setRating(value) {
+    selectedRating = value;
+    document.getElementById('ratingValue').value = value;
+    highlightStars(value);
+}
+
+function highlightStars(value) {
+    document.querySelectorAll('#ratingStars span').forEach((star, index) => {
+        if (index < value) {
+            star.className = 'active';
+        } else {
+            star.className = 'inactive';
+        }
+    });
+}
+
+// Image preview
+document.getElementById('imageUrl').addEventListener('input', function() {
+    previewImage(this.value);
+});
+
+function previewImage(url) {
+    const preview = document.getElementById('imagePreview');
+    if (url) {
+        preview.innerHTML = `<img src="${url}" alt="Preview" onerror="this.style.display='none'">`;
+    } else {
+        preview.innerHTML = '';
+    }
+}
+
+// Video preview
+document.getElementById('videoUrl').addEventListener('input', function() {
+    previewVideo(this.value);
+});
+
+function previewVideo(url) {
+    const preview = document.getElementById('videoPreview');
+    if (url) {
+        let embedUrl = url;
+        if (url.includes('youtube.com/watch')) {
+            const videoId = new URLSearchParams(new URL(url).search).get('v');
+            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        } else if (url.includes('youtu.be')) {
+            const videoId = url.split('/').pop();
+            embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        } else if (url.includes('vimeo.com')) {
+            const videoId = url.split('/').pop();
+            embedUrl = `https://player.vimeo.com/video/${videoId}`;
+        }
+        preview.innerHTML = `<iframe src="${embedUrl}" allowfullscreen></iframe>`;
+    } else {
+        preview.innerHTML = '';
+    }
+}
+
+// Save progress
+async function saveProgress() {
+    const btn = document.getElementById('saveBtn');
+    const msg = document.getElementById('saveMessage');
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving...';
+    msg.style.display = 'none';
+    
+    const data = {
+        walk_km: parseFloat(document.getElementById('walkKm').value) || 0,
+        gym_minutes: parseInt(document.getElementById('gymMinutes').value) || 0,
+        study_minutes: parseInt(document.getElementById('studyMinutes').value) || 0,
+        tasks_completed: document.getElementById('tasksCompleted').value.split(',').map(t => t.trim()).filter(t => t),
+        discipline_rating: parseInt(document.getElementById('ratingValue').value) || 1,
+        image_url: document.getElementById('imageUrl').value.trim(),
+        video_url: document.getElementById('videoUrl').value.trim(),
+        notes: document.getElementById('notes').value.trim()
+    };
+    
+    try {
+        const response = await fetch('/api/discipline/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        msg.textContent = `✅ ${result.message}`;
+        msg.style.display = 'block';
+        msg.style.background = '#e7f7ef';
+        msg.style.color = '#147a43';
+        
+        currentDay = result.streak || 1;
+        document.getElementById('dayNumber').textContent = currentDay;
+        
+        loadTodayTasks();
+        loadPublicStats();
+        
+    } catch (error) {
+        msg.textContent = '❌ ' + error.message;
+        msg.style.display = 'block';
+        msg.style.background = '#fdecec';
+        msg.style.color = '#b42318';
+    }
+    
+    btn.disabled = false;
+    btn.textContent = '💾 Save Today\'s Progress';
+}
+
+// Load public stats
+async function loadPublicStats() {
+    try {
+        const response = await fetch('/api/discipline/public-stats');
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        const stats = result.stats || {};
+        document.getElementById('totalDays').textContent = stats.total_days || 0;
+        document.getElementById('totalWalk').textContent = stats.total_walk || 0;
+        document.getElementById('totalGym').textContent = stats.total_gym || 0;
+        document.getElementById('totalStudy').textContent = stats.total_study || 0;
+        document.getElementById('streakCount').textContent = stats.current_streak || 0;
+        
+        const recent = result.recent || [];
+        const container = document.getElementById('recentEntries');
+        if (recent.length === 0) {
+            container.innerHTML = '<p style="color:#6b7280;text-align:center;">No entries yet. Be the first!</p>';
+        } else {
+            container.innerHTML = recent.map(entry => `
+                <div style="padding:10px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <strong>Day ${entry.day_number}</strong>
+                        <span style="font-size:13px;color:#6b7280;margin-left:10px;">
+                            ${entry.walk_km ? `🏃 ${entry.walk_km}km` : ''}
+                            ${entry.gym_minutes ? `💪 ${entry.gym_minutes}min` : ''}
+                            ${entry.study_minutes ? `📚 ${entry.study_minutes}min` : ''}
+                        </span>
+                    </div>
+                    <span style="font-size:13px;color:#6b7280;">
+                        ${entry.discipline_rating ? `⭐ ${entry.discipline_rating}/10` : ''}
+                    </span>
+                </div>
+            `).join('');
+        }
+        
+    } catch (error) {
+        console.error('Public stats error:', error);
+    }
+}
+
+// Load motivation quote
+async function loadQuote() {
+    try {
+        const response = await fetch('/api/discipline/quote');
+        const result = await response.json();
+        if (result.success && result.data) {
+            document.getElementById('quoteText').textContent = result.data.quote;
+            document.getElementById('quoteAuthor').textContent = `- ${result.data.author || 'Unknown'}`;
+        }
+    } catch (error) {
+        console.error('Quote error:', error);
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    checkAuth();
+    loadPublicStats();
+    loadQuote();
+    
+    // ✅ Auto-refresh every 10 seconds
+    setInterval(() => {
+        if (isLoggedIn) {
+            loadTodayTasks();
+        }
+    }, 10000);
+});
+</script>
+</body>
+</html>

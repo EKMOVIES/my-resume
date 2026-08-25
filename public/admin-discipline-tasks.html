@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discipline Tasks | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h2 { font-size: 28px; }
+        .header p { color: #6b7280; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #005f5f;
+        }
+        .stat-card .label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .form-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .form-card h3 { margin-bottom: 15px; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+        input, textarea, select {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .save-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .save-btn:hover { opacity: 0.9; }
+        .items-list { display: grid; gap: 15px; }
+        .item-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .item-card .task-completed {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+        .item-card .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.fitness { background: #dbeafe; color: #1e40af; }
+        .badge.study { background: #dcfce7; color: #166534; }
+        .badge.work { background: #fef3c7; color: #92400e; }
+        .badge.personal { background: #fce4ec; color: #c62828; }
+        .badge.other { background: #e8e8e8; color: #4a4a4a; }
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .complete-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .message {
+            display: none;
+            padding: 11px 15px;
+            border-radius: 7px;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+        }
+        .loading { color: #6b7280; padding: 20px; text-align: center; }
+        
+        .sync-notice {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+        .sync-notice.show {
+            display: flex;
+        }
+        .sync-notice .close {
+            cursor: pointer;
+            margin-left: auto;
+            font-weight: bold;
+        }
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: auto; }
+            .navbar { padding: 0 15px; }
+            .item-card { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="header">
+        <div>
+            <h2>📋 Discipline Tasks</h2>
+            <p>Manage your daily discipline tasks</p>
+        </div>
+        <div>
+            <button onclick="window.open('/discipline-tracker.html', '_blank')" class="save-btn" style="background:#2563eb;">
+                🔥 View Tracker
+            </button>
+            <button onclick="location.reload()" class="save-btn" style="background:#7c3aed;margin-left:5px;">
+                🔄 Refresh
+            </button>
+        </div>
+    </div>
+
+    <div class="sync-notice" id="syncNotice">
+        <span>🔄 Task updated! Refreshing...</span>
+        <span class="close" onclick="closeSyncNotice()">✕</span>
+    </div>
+
+    <div class="stats" id="statsContainer">
+        <div class="stat-card">
+            <div class="number" id="totalTasks">0</div>
+            <div class="label">Total Tasks</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="completedTasks">0</div>
+            <div class="label">✅ Completed</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="pendingTasks">0</div>
+            <div class="label">⏳ Pending</div>
+        </div>
+    </div>
+
+    <div class="form-card">
+        <h3 id="formTitle">➕ Add New Task</h3>
+        <form id="taskForm">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="taskTitle">Task Title *</label>
+                    <input id="taskTitle" type="text" required placeholder="e.g., 5km Walk">
+                </div>
+                <div class="form-group">
+                    <label for="taskCategory">Category</label>
+                    <select id="taskCategory">
+                        <option value="fitness">💪 Fitness</option>
+                        <option value="study">📚 Study</option>
+                        <option value="work">💼 Work</option>
+                        <option value="personal">🧘 Personal</option>
+                        <option value="other">📌 Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="isDaily">Task Type</label>
+                    <select id="isDaily">
+                        <option value="true">📅 Daily Task</option>
+                        <option value="false">📋 One-Time Task</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="taskDescription">Description</label>
+                    <textarea id="taskDescription" placeholder="Optional description..."></textarea>
+                </div>
+            </div>
+            <button type="submit" class="save-btn" id="submitBtn">➕ Add Task</button>
+            <div id="message" class="message"></div>
+        </form>
+    </div>
+
+    <div id="loading" class="loading">Loading tasks...</div>
+    <div id="tasksList" class="items-list"></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let token = null;
+let editingId = null;
+
+async function getToken() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = '/admin.html';
+        return null;
+    }
+    token = session.access_token;
+    return token;
+}
+
+function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.textContent = text;
+    msg.className = `message ${type}`;
+    setTimeout(() => { msg.className = 'message'; }, 5000);
+}
+
+function closeSyncNotice() {
+    document.getElementById('syncNotice').classList.remove('show');
+}
+
+function showSyncNotice() {
+    const notice = document.getElementById('syncNotice');
+    notice.classList.add('show');
+    setTimeout(() => {
+        notice.classList.remove('show');
+    }, 3000);
+}
+
+function forceRefreshTracker() {
+    const trackerWindows = window.open('', 'disciplineTracker');
+    if (trackerWindows && !trackerWindows.closed) {
+        try {
+            trackerWindows.location.reload();
+            showMessage('✅ Tracker refreshed!', 'success');
+        } catch (e) {
+            showMessage('⚠️ Tracker not open', 'error');
+        }
+    } else {
+        window.open('/discipline-tracker.html', '_blank');
+        showMessage('✅ Tracker opened', 'success');
+    }
+}
+
+async function loadTasks() {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('tasksList').innerHTML = '';
+        
+        const response = await fetch('/api/discipline/tasks', {
+            headers: { 
+                'Authorization': `Bearer ${t}`,
+                'Cache-Control': 'no-cache'
+            }
+        });
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.message);
+        
+        const data = result.data || [];
+        updateStats(data);
+        renderTasks(data);
+        document.getElementById('loading').style.display = 'none';
+        
+    } catch (error) {
+        console.error(error);
+        document.getElementById('loading').textContent = '❌ ' + error.message;
+        document.getElementById('loading').style.display = 'block';
+    }
+}
+
+function updateStats(data) {
+    const total = data.length;
+    const completed = data.filter(t => t.is_completed).length;
+    const pending = total - completed;
+    
+    document.getElementById('totalTasks').textContent = total;
+    document.getElementById('completedTasks').textContent = completed;
+    document.getElementById('pendingTasks').textContent = pending;
+}
+
+function renderTasks(data) {
+    const container = document.getElementById('tasksList');
+    
+    if (data.length === 0) {
+        container.innerHTML = '<p style="color:#6b7280;padding:20px;text-align:center;">📭 No tasks added yet.</p>';
+        return;
+    }
+    
+    container.innerHTML = data.map(task => `
+        <div class="item-card">
+            <div>
+                <h3 class="${task.is_completed ? 'task-completed' : ''}">${task.task_title}</h3>
+                <div>
+                    <span class="badge ${task.task_category}">${task.task_category}</span>
+                    <span style="font-size:13px;color:#6b7280;margin-left:10px;">
+                        ${task.is_daily ? '📅 Daily' : '📋 One-time'}
+                    </span>
+                    ${task.is_completed ? ' ✅ Completed' : ''}
+                </div>
+                ${task.task_description ? `<p style="font-size:14px;color:#6b7280;margin-top:5px;">${task.task_description}</p>` : ''}
+            </div>
+            <div class="task-actions">
+                ${!task.is_completed ? `
+                    <button class="complete-btn" onclick="markComplete('${task.id}')">✅ Complete</button>
+                ` : ''}
+                <button class="edit-btn" onclick="editTask('${task.id}')">✏️ Edit</button>
+                <button class="delete-btn" onclick="deleteTask('${task.id}')">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function markComplete(id) {
+    const t = await getToken();
+    if (!t) return;
+    
+    try {
+        const response = await fetch(`/api/discipline/tasks/${id}/complete`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `Bearer ${t}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) throw new Error('Could not complete task');
+        
+        showMessage('✅ Task completed!', 'success');
+        
+        await loadTasks();
+        showSyncNotice();
+        forceRefreshTracker();
+        
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+async function editTask(id) {
+    const t = await getToken();
+    if (!t) return;
+    
+    try {
+        const response = await fetch(`/api/discipline/tasks/${id}`, {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error('Could not load task');
+        
+        const task = result.data;
+        document.getElementById('taskTitle').value = task.task_title;
+        document.getElementById('taskCategory').value = task.task_category;
+        document.getElementById('isDaily').value = task.is_daily ? 'true' : 'false';
+        document.getElementById('taskDescription').value = task.task_description || '';
+        
+        editingId = id;
+        document.getElementById('formTitle').textContent = '✏️ Edit Task';
+        document.getElementById('submitBtn').textContent = '💾 Update Task';
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+async function deleteTask(id) {
+    if (!confirm('Delete this task?')) return;
+    const t = await getToken();
+    if (!t) return;
+    
+    try {
+        const response = await fetch(`/api/discipline/tasks/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        
+        if (!response.ok) throw new Error('Could not delete');
+        
+        showMessage('🗑️ Task deleted', 'success');
+        loadTasks();
+        forceRefreshTracker();
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+document.getElementById('taskForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const t = await getToken();
+    if (!t) return;
+    
+    const data = {
+        task_title: document.getElementById('taskTitle').value.trim(),
+        task_category: document.getElementById('taskCategory').value,
+        is_daily: document.getElementById('isDaily').value === 'true',
+        task_description: document.getElementById('taskDescription').value.trim()
+    };
+    
+    if (!data.task_title) {
+        showMessage('⚠️ Task title is required', 'error');
+        return;
+    }
+    
+    const url = editingId ? `/api/discipline/tasks/${editingId}` : '/api/discipline/tasks';
+    const method = editingId ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${t}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message);
+        
+        showMessage(editingId ? '✅ Task updated!' : '✅ Task added!', 'success');
+        
+        document.getElementById('taskForm').reset();
+        editingId = null;
+        document.getElementById('formTitle').textContent = '➕ Add New Task';
+        document.getElementById('submitBtn').textContent = '➕ Add Task';
+        
+        loadTasks();
+        forceRefreshTracker();
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '/admin.html';
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = '/admin-dashboard.html';
+});
+
+loadTasks();
+</script>
+</body>
+</html>

@@ -284,3 +284,49 @@
         transparent 100%
     );
 }
+
+/* =========================================================
+   RESUME SKELETON
+========================================================= */
+
+.skeleton-timeline-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.skeleton-timeline-item:last-child {
+    border-bottom: none;
+}
+
+.skeleton-timeline-item .skeleton-date {
+    width: 120px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.skeleton-timeline-item .skeleton-title {
+    width: 70%;
+    height: 20px;
+    border-radius: 4px;
+}
+
+.skeleton-timeline-item .skeleton-subtitle {
+    width: 50%;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.skeleton-timeline-item .skeleton-text {
+    width: 90%;
+    height: 14px;
+    border-radius: 4px;
+}
+
+.skeleton-timeline-item .skeleton-text-short {
+    width: 60%;
+    height: 14px;
+    border-radius: 4px;
+}
