@@ -257,20 +257,33 @@
   <header class="site-header">
     <div class="container nav">
       <a class="brand" href="#home">ISHTIAK<span>.</span></a>
-      <nav>
-        <a href="#about">About</a>
-        <a href="#resume">Resume</a>
-        <a href="#skills">Skills</a>
-        <a href="#services">Services</a>
-        <a href="#projects">Projects</a>
-        <a href="#blog">Blog</a>
-        <a href="#testimonials">Testimonials</a>
-        <a href="#files">Files</a>
-        <a href="#contact">Contact</a>
-        <a href="/discipline-tracker.html">🔥 Discipline Tracker</a>
-
-        <a href="/client-login.html" class="client-portal-link">👥 Client Portal</a>
-      </nav>
+   <nav>
+    <!-- Main Links -->
+    <a href="#about">About</a>
+    <a href="#resume">Resume</a>
+    <a href="#skills">Skills</a>
+    
+    <!-- Dropdown: Services + Projects -->
+    <div class="dropdown">
+        <a href="#" class="dropdown-toggle">Work ▾</a>
+        <div class="dropdown-menu">
+            <a href="#services">Services</a>
+            <a href="#projects">Projects</a>
+            <a href="#testimonials">Testimonials</a>
+        </div>
+    </div>
+    
+    <!-- Dropdown: More -->
+    <div class="dropdown">
+        <a href="#" class="dropdown-toggle">More ▾</a>
+        <div class="dropdown-menu">
+            <a href="#blog">Blog</a>
+            <a href="#files">Files</a>
+            <a href="#contact">Contact</a>
+            <a href="/client-login.html">👥 Client</a>
+        </div>
+    </div>
+</nav>
       <div style="display:flex;align-items:center;gap:10px;">
         <button class="dark-toggle" id="darkToggle" aria-label="Toggle dark mode">🌙</button>
         <button class="menu-btn" id="menuBtn" aria-label="Toggle menu">☰</button>
