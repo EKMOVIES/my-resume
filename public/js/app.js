@@ -1218,6 +1218,264 @@ async function loadDisciplinePublic() {
 }
 
 /* =========================================================
+   SERVICES SALE - Load from API
+========================================================= */
+
+async function loadServicesSale() {
+    try {
+        console.log('📡 Loading services from API...');
+        const response = await fetch('/api/services-sale');
+        console.log('📡 API Response Status:', response.status);
+        
+        const result = await response.json();
+        console.log('📦 Services Data:', result);
+
+        if (!response.ok || !result.success) {
+            console.error('Could not load services:', result);
+            return;
+        }
+
+        const container = document.getElementById('servicesSaleContainer');
+        if (!container) return;
+
+        const data = result.data || [];
+        console.log('📊 Total services found:', data.length);
+
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px;color:var(--text-secondary);grid-column:1/-1;">
+                    <p style="font-size:18px;">No services available yet.</p>
+                    <p>Check back soon!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.className = 'services-sale-grid';
+        container.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:25px;';
+
+        container.innerHTML = data.map(item => {
+            // ✅ Debug: Log each service
+            console.log('🔍 Rendering service:', item.name, 'Slug:', item.slug);
+            
+            return `
+                <div class="service-card" style="background:var(--card-bg);border:1px solid var(--border-color);border-radius:14px;overflow:hidden;transition:all 0.3s;">
+                    <div style="position:relative;overflow:hidden;height:200px;">
+                        <img src="${item.image_url || 'https://via.placeholder.com/400x200'}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;transition:transform 0.3s;" onerror="this.style.display='none'">
+                        ${item.sale_price ? `<span style="position:absolute;top:10px;right:10px;background:#ef4444;color:white;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">SALE!</span>` : ''}
+                    </div>
+                    <div style="padding:20px;">
+                        <h3 style="font-size:18px;margin-bottom:5px;">${item.name}</h3>
+                        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">${item.category || 'Service'}</p>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                            <span style="font-size:22px;font-weight:800;color:#005f5f;">$${item.price}</span>
+                            ${item.sale_price ? `<span style="font-size:14px;color:#ef4444;text-decoration:line-through;">$${item.sale_price}</span>` : ''}
+                        </div>
+                        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:15px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${item.description}</p>
+                        <a href="/service/${item.slug}" class="btn primary" style="width:100%;text-align:center;padding:10px;display:block;">View Details</a>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        console.log('✅ Services loaded successfully.');
+    } catch (error) {
+        console.error('❌ Services loading error:', error);
+    }
+}
+
+/* =========================================================
+   CHAT BOX FUNCTIONS
+========================================================= */
+
+/* =========================================================
+   💬 CHAT SYSTEM - COMPLETE FUNCTIONS
+========================================================= */
+
+let chatOpen = false;
+let chatSessionId = localStorage.getItem('chatSessionId') || null;
+let chatGuestName = localStorage.getItem('chatGuestName') || null;
+let chatGuestEmail = localStorage.getItem('chatGuestEmail') || null;
+
+// ✅ Generate Session ID
+function generateSessionId() {
+    return 'guest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+}
+
+// ✅ Toggle Chat Box
+function toggleChatBox() {
+    if (chatOpen) {
+        closeChatBox();
+    } else {
+        openChatBox();
+    }
+}
+
+// ✅ Open Chat Box
+function openChatBox() {
+    const chatBox = document.getElementById('chatBox');
+    const chatToggle = document.getElementById('chatToggle');
+    
+    if (!chatBox) return;
+    
+    chatBox.style.display = 'block';
+    if (chatToggle) chatToggle.style.display = 'none';
+    chatOpen = true;
+    
+    // Create session if not exists
+    if (!chatSessionId) {
+        chatSessionId = generateSessionId();
+        localStorage.setItem('chatSessionId', chatSessionId);
+    }
+    
+    // Ask for guest info (once)
+    if (!chatGuestName) {
+        chatGuestName = prompt('Please enter your name:', 'Guest') || 'Guest';
+        chatGuestEmail = prompt('Please enter your email (optional):', '') || '';
+        localStorage.setItem('chatGuestName', chatGuestName);
+        localStorage.setItem('chatGuestEmail', chatGuestEmail);
+    }
+    
+    loadChatMessages();
+    
+    if (window.chatInterval) clearInterval(window.chatInterval);
+    window.chatInterval = setInterval(loadChatMessages, 5000);
+}
+
+// ✅ Close Chat Box
+function closeChatBox() {
+    const chatBox = document.getElementById('chatBox');
+    const chatToggle = document.getElementById('chatToggle');
+    
+    if (chatBox) chatBox.style.display = 'none';
+    if (chatToggle) chatToggle.style.display = 'block';
+    chatOpen = false;
+    
+    if (window.chatInterval) {
+        clearInterval(window.chatInterval);
+        window.chatInterval = null;
+    }
+}
+
+// ✅ Load Chat Messages
+async function loadChatMessages() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+
+    try {
+        const sessionId = localStorage.getItem('chatSessionId') || '';
+        const response = await fetch(`/api/chat/messages?session=${sessionId}`);
+        const result = await response.json();
+
+        if (!response.ok) throw new Error('Could not load messages');
+
+        const messages = result.data || [];
+
+        if (messages.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:14px;">
+                    👋 Welcome! Ask me anything.
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = messages.map(msg => {
+            const isAdmin = msg.is_admin === true;
+            const senderName = isAdmin ? '👤 Admin' : (msg.sender_name || 'Guest');
+            const bgColor = isAdmin ? '#e5f0ff' : '#f3f4f6';
+            const borderColor = isAdmin ? '#005f5f' : '#7c3aed';
+            const align = isAdmin ? 'flex-start' : 'flex-end';
+            const nameColor = isAdmin ? '#005f5f' : '#7c3aed';
+
+            return `
+                <div style="margin-bottom:12px;display:flex;flex-direction:column;align-items:${align};">
+                    <div style="max-width:85%;padding:12px 16px;background:${bgColor};border-radius:12px;border-left:3px solid ${borderColor};word-wrap:break-word;">
+                        <div style="font-size:12px;font-weight:600;color:${nameColor};margin-bottom:4px;">
+                            ${senderName}
+                            ${isAdmin ? '🟢' : ''}
+                        </div>
+                        <div style="font-size:14px;line-height:1.6;">${msg.message}</div>
+                        <div style="font-size:10px;color:#6b7280;margin-top:4px;">
+                            ${new Date(msg.created_at).toLocaleTimeString()}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.scrollTop = container.scrollHeight;
+
+    } catch (error) {
+        console.error('Load chat error:', error);
+    }
+}
+
+// ✅ Send Chat Message
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+    
+    const message = input.value.trim();
+
+    if (!message) {
+        alert('Please type a message');
+        return;
+    }
+
+    const name = localStorage.getItem('chatGuestName') || 'Guest';
+    const email = localStorage.getItem('chatGuestEmail') || '';
+    const sessionId = localStorage.getItem('chatSessionId') || generateSessionId();
+
+    try {
+        const response = await fetch('/api/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                sender_name: name, 
+                sender_email: email, 
+                message: message,
+                session_id: sessionId
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Could not send message');
+        }
+
+        input.value = '';
+        loadChatMessages();
+
+    } catch (error) {
+        console.error('Chat send error:', error);
+        alert('❌ ' + error.message);
+    }
+}
+
+// ✅ Enter key support for chat
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+    }
+});
+
+console.log('✅ Chat system loaded');
+
+
+// Auto-refresh chat every 10 seconds
+setInterval(() => {
+    if (chatOpen) loadChatMessages();
+}, 10000);
+
+/* =========================================================
    START - Load Everything
 ========================================================= */
 
@@ -1229,6 +1487,7 @@ loadServices();
 loadProjects();
 loadTestimonials();
 loadBlogPosts();
+loadServicesSale();
 
 if (document.getElementById('disciplineStats')) {
     loadDisciplinePublic();

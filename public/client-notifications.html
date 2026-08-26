@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Notifications | Client Portal</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            background: #005f5f;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar h1 { font-size: 20px; }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        .card.unread {
+            border-left: 4px solid #005f5f;
+            background: #f8fbfa;
+        }
+        .card .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .card .header .time {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .card .message {
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .card .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.unread { background: #005f5f; color: white; }
+        .badge.read { background: #e5e7eb; color: #6b7280; }
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        .empty .icon { font-size: 48px; margin-bottom: 10px; }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #005f5f;
+            text-decoration: none;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .notification-count {
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        @media (max-width: 600px) {
+            .navbar { padding: 15px; }
+            .navbar h1 { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>📢 My Notifications</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</nav>
+
+<div class="container">
+    <div id="notificationsContainer">
+        <div class="empty">
+            <div class="icon">🔔</div>
+            <p>Loading notifications...</p>
+        </div>
+    </div>
+    <a href="/client-dashboard.html" class="back-link">← Back to Dashboard</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let token = null;
+let clientData = null;
+
+async function checkAuth() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = '/client-login.html';
+        return null;
+    }
+    token = session.access_token;
+    clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
+    return session;
+}
+
+async function loadNotifications() {
+    const session = await checkAuth();
+    if (!session) return;
+
+    const email = clientData.email;
+    if (!email) {
+        document.getElementById('notificationsContainer').innerHTML = `
+            <div class="empty">
+                <div class="icon">⚠️</div>
+                <p>Please login again.</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/notifications?email=${encodeURIComponent(email)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const notifications = result.data || [];
+        renderNotifications(notifications);
+
+    } catch (error) {
+        console.error('Load error:', error);
+        document.getElementById('notificationsContainer').innerHTML = `
+            <div class="empty" style="color:#dc2626;">
+                <div class="icon">❌</div>
+                <p>Error loading notifications</p>
+                <button onclick="loadNotifications()" style="margin-top:10px;padding:8px 20px;background:#005f5f;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button>
+            </div>
+        `;
+    }
+}
+
+async function renderNotifications(notifications) {
+    const container = document.getElementById('notificationsContainer');
+
+    if (notifications.length === 0) {
+        container.innerHTML = `
+            <div class="empty">
+                <div class="icon">🔕</div>
+                <p style="font-size:18px;font-weight:600;">No notifications</p>
+                <p style="font-size:14px;margin-top:5px;">You'll see updates about your orders here.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Mark all as read when viewing
+    const unread = notifications.filter(n => n.status === 'unread');
+    for (const n of unread) {
+        try {
+            await fetch(`/api/notifications/${n.id}/read`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (e) {}
+    }
+
+    container.innerHTML = notifications.map(n => `
+        <div class="card ${n.status === 'unread' ? 'unread' : ''}">
+            <div class="header">
+                <span class="badge ${n.status}">${n.status === 'unread' ? '🔵 New' : '✓ Read'}</span>
+                <span class="time">${new Date(n.created_at).toLocaleString()}</span>
+            </div>
+            <div class="message">${n.message}</div>
+            ${n.order_id ? `<div style="margin-top:8px;font-size:13px;color:#6b7280;">📦 Order: #${n.order_id.substring(0, 8)}</div>` : ''}
+        </div>
+    `).join('');
+}
+
+function logout() {
+    localStorage.removeItem('clientToken');
+    localStorage.removeItem('clientData');
+    window.location.href = '/client-login.html';
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+    loadNotifications();
+}, 30000);
+
+checkAuth();
+loadNotifications();
+</script>
+</body>
+</html>

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chat | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h2 { font-size: 28px; }
+        .header p { color: #6b7280; }
+
+        .chat-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            height: 550px;
+        }
+        .session-list {
+            background: white;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .session-list .session-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .session-list .session-item:hover {
+            background: #f3f4f6;
+        }
+        .session-list .session-item.active {
+            background: #e5f0ff;
+            border-left: 3px solid #005f5f;
+        }
+        .session-list .session-item .name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .session-list .session-item .meta {
+            font-size: 12px;
+            color: #6b7280;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+        }
+        .session-list .session-item .unread-badge {
+            background: #005f5f;
+            color: white;
+            border-radius: 50%;
+            padding: 1px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafbfc;
+        }
+        .chat-messages .empty {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        .message-item {
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .message-item .message-bubble {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .message-item.client .message-bubble {
+            background: #f3f4f6;
+            border-left: 3px solid #7c3aed;
+        }
+        .message-item.admin .message-bubble {
+            background: #e5f0ff;
+            border-left: 3px solid #005f5f;
+            margin-left: auto;
+        }
+        .message-item .message-meta {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .badge-admin { background: #005f5f; color: white; padding: 1px 8px; border-radius: 10px; font-size: 10px; }
+        .badge-client { background: #6b7280; color: white; padding: 1px 8px; border-radius: 10px; font-size: 10px; }
+
+        .chat-input-area {
+            padding: 15px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        .chat-input-area button {
+            padding: 12px 24px;
+            background: #005f5f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .session-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f8fafc;
+        }
+        .session-header .name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .chat-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .session-list {
+                max-height: 200px;
+            }
+            .chat-container {
+                height: 450px;
+            }
+            .chat-input-area { flex-direction: column; }
+            .chat-input-area button { width: 100%; }
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="header">
+        <div>
+            <h2>💬 Live Chat</h2>
+            <p>Manage conversations with clients</p>
+        </div>
+        <div style="color:#10b981;font-weight:600;">
+            🟢 Online
+        </div>
+    </div>
+
+    <div class="chat-layout">
+        <!-- Session List -->
+        <div class="session-list" id="sessionList">
+            <div style="text-align:center;padding:20px;color:#6b7280;">Loading sessions...</div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-container">
+            <div class="session-header" id="sessionHeader">
+                <span style="color:#6b7280;">Select a conversation</span>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty">
+                    <div style="font-size:48px;margin-bottom:10px;">💬</div>
+                    <p>Select a session to view messages</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="replyInput" placeholder="Type your reply..." onkeypress="if(event.key==='Enter') sendReply()">
+                <button id="sendBtn" onclick="sendReply()">📤 Reply</button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let token = null;
+let currentSessionId = null;
+
+async function getToken() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = '/admin.html';
+        return null;
+    }
+    token = session.access_token;
+    return token;
+}
+
+// ============================================================
+// ✅ LOAD SESSIONS
+// ============================================================
+
+async function loadSessions() {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch('/api/admin/chat-sessions', {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const sessions = result.data || [];
+        renderSessions(sessions);
+
+    } catch (error) {
+        document.getElementById('sessionList').innerHTML = `
+            <div style="text-align:center;padding:20px;color:#dc2626;">
+                ❌ ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderSessions(sessions) {
+    const container = document.getElementById('sessionList');
+
+    if (sessions.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:20px;color:#6b7280;">
+                💬 No conversations yet
+            </div>
+        `;
+        return;
+    }
+
+    // Sort by newest first
+    const sorted = sessions.sort((a, b) => new Date(b.last_message) - new Date(a.last_message));
+
+    container.innerHTML = sorted.map(s => `
+        <div class="session-item ${currentSessionId === s.session_id ? 'active' : ''}" 
+             onclick="selectSession('${s.session_id}')">
+            <div class="name">${s.sender_name}</div>
+            <div class="meta">
+                <span>${s.message_count} messages</span>
+                ${s.unread_count > 0 ? `<span class="unread-badge">${s.unread_count}</span>` : ''}
+            </div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:2px;">
+                ${new Date(s.last_message).toLocaleString()}
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// ✅ SELECT SESSION
+// ============================================================
+
+async function selectSession(sessionId) {
+    currentSessionId = sessionId;
+    
+    // Update UI
+    document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+    const items = document.querySelectorAll('.session-item');
+    items.forEach(el => {
+        if (el.textContent.includes(sessionId) || el.dataset.session === sessionId) {
+            el.classList.add('active');
+        }
+    });
+    
+    // Load messages for this session
+    await loadSessionMessages(sessionId);
+    
+    // Mark as read
+    await markAsRead(sessionId);
+    
+    // Update session list to remove unread badge
+    loadSessions();
+}
+
+// ============================================================
+// ✅ LOAD SESSION MESSAGES
+// ============================================================
+
+async function loadSessionMessages(sessionId) {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch(`/api/admin/chat-session/${sessionId}`, {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const messages = result.data || [];
+        renderMessages(messages, sessionId);
+
+    } catch (error) {
+        document.getElementById('chatMessages').innerHTML = `
+            <div style="text-align:center;padding:40px;color:#dc2626;">
+                ❌ ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderMessages(messages, sessionId) {
+    const container = document.getElementById('chatMessages');
+
+    if (messages.length === 0) {
+        container.innerHTML = `
+            <div class="empty">
+                <div style="font-size:48px;margin-bottom:10px;">💬</div>
+                <p>No messages in this conversation</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Get session info
+    const sessionName = messages[0]?.sender_name || 'Guest';
+    document.getElementById('sessionHeader').innerHTML = `
+        <span class="name">${sessionName}</span>
+        <span style="font-size:12px;color:#6b7280;margin-left:10px;">
+            ${messages.length} messages
+        </span>
+    `;
+
+    const sorted = messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    container.innerHTML = sorted.map(msg => {
+        const isAdmin = msg.is_admin === true;
+        const msgClass = isAdmin ? 'admin' : 'client';
+        const badge = isAdmin ? 'Admin' : 'Client';
+        const badgeClass = isAdmin ? 'badge-admin' : 'badge-client';
+        const name = isAdmin ? '👤 Admin' : (msg.sender_name || 'Guest');
+
+        return `
+            <div class="message-item ${msgClass}">
+                <div class="message-bubble">
+                    <div style="font-size:12px;font-weight:600;color:${isAdmin ? '#005f5f' : '#7c3aed'};margin-bottom:3px;">
+                        ${name}
+                    </div>
+                    <div>${msg.message}</div>
+                    <div class="message-meta">
+                        <span class="${badgeClass}">${badge}</span>
+                        <span>${new Date(msg.created_at).toLocaleString()}</span>
+                        ${msg.sender_email ? `<span>📧 ${msg.sender_email}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.scrollTop = container.scrollHeight;
+}
+
+// ============================================================
+// ✅ MARK AS READ
+// ============================================================
+
+async function markAsRead(sessionId) {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        await fetch(`/api/admin/chat-mark-read/${sessionId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+    } catch (e) {
+        console.error('Mark as read error:', e);
+    }
+}
+
+// ============================================================
+// ✅ SEND REPLY
+// ============================================================
+
+async function sendReply() {
+    if (!currentSessionId) {
+        alert('Please select a conversation first');
+        return;
+    }
+
+    const input = document.getElementById('replyInput');
+    const btn = document.getElementById('sendBtn');
+    const message = input.value.trim();
+
+    if (!message) {
+        alert('Please type a reply');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending...';
+
+    try {
+        const response = await fetch('/api/admin/chat-reply', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+                reply: message,
+                session_id: currentSessionId
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Could not send reply');
+        }
+
+        input.value = '';
+        await loadSessionMessages(currentSessionId);
+        loadSessions();
+
+    } catch (error) {
+        alert('❌ ' + error.message);
+    }
+
+    btn.disabled = false;
+    btn.textContent = '📤 Reply';
+}
+
+// ============================================================
+// ✅ AUTO-REFRESH
+// ============================================================
+
+setInterval(() => {
+    if (currentSessionId) {
+        loadSessionMessages(currentSessionId);
+    }
+    loadSessions();
+}, 5000);
+
+// ============================================================
+// ✅ LOGOUT & BACK
+// ============================================================
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '/admin.html';
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = '/admin-dashboard.html';
+});
+
+// ============================================================
+// ✅ INIT
+// ============================================================
+
+getToken().then(() => {
+    loadSessions();
+});
+</script>
+</body>
+</html>

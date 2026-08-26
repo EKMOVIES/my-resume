@@ -3235,11 +3235,9 @@ app.get('/api/discipline/quote', async (req, res) => {
 // 📋 DISCIPLINE TASKS API
 // ============================================================
 
-// ✅ Get all tasks
 // ✅ Get all tasks (with cache bypass)
 app.get('/api/discipline/tasks', requireAuth, async (req, res) => {
     try {
-        // ✅ No cache header
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
@@ -3256,6 +3254,7 @@ app.get('/api/discipline/tasks', requireAuth, async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
 // ✅ Add task
 app.post('/api/discipline/tasks', requireAuth, async (req, res) => {
     try {
@@ -3332,7 +3331,6 @@ app.put('/api/discipline/tasks/:id/complete', requireAuth, async (req, res) => {
 
         if (error) throw error;
         
-        // ✅ Return updated data with timestamp
         res.json({ 
             success: true, 
             data: data,
@@ -3727,8 +3725,773 @@ app.get('/api/admin/analytics', requireAuth, async (req, res) => {
 });
 
 /* =========================================================
+   💼 SERVICES SALE API
+========================================================= */
+
+// ✅ Get all services (public)
+app.get('/api/services-sale', async (req, res) => {
+    try {
+        const { category, featured } = req.query;
+        
+        let query = supabase
+            .from('services_sale')
+            .select('*')
+            .eq('is_available', true)
+            .order('sort_order', { ascending: true });
+
+        if (category) query = query.eq('category', category);
+        if (featured === 'true') query = query.eq('is_featured', true);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Get single service (public)
+app.get('/api/services-sale/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { data, error } = await supabase
+            .from('services_sale')
+            .select('*')
+            .eq('slug', slug)
+            .single();
+
+        if (error) throw error;
+        
+        await supabase
+            .from('services_sale')
+            .update({ views: (data.views || 0) + 1 })
+            .eq('id', data.id);
+
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Create service
+app.post('/api/admin/services-sale', requireAuth, async (req, res) => {
+    try {
+        const { name, slug, description, price, sale_price, category, image_url, gallery_images, demo_url, features, is_available, is_featured, sort_order } = req.body;
+
+        if (!name || !slug || !price) {
+            return res.status(400).json({ success: false, message: 'Name, slug and price are required' });
+        }
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .insert({
+                name, slug, description, price, sale_price,
+                category: category || 'website',
+                image_url, gallery_images: gallery_images || [],
+                demo_url, features: features || {},
+                is_available: is_available !== undefined ? is_available : true,
+                is_featured: is_featured || false,
+                sort_order: sort_order || 0
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        console.error('Create error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+// ✅ Get single service by ID (Admin)
+app.get('/api/services-sale/id/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+// ✅ Admin - Update service
+app.put('/api/admin/services-sale/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, slug, description, price, sale_price, category, image_url, gallery_images, demo_url, features, is_available, is_featured, sort_order } = req.body;
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .update({
+                name, slug, description, price, sale_price,
+                category, image_url, gallery_images, demo_url,
+                features, is_available, is_featured, sort_order,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Delete service
+app.delete('/api/admin/services-sale/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabase
+            .from('services_sale')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.json({ success: true, message: 'Service deleted' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Create Order
+app.post('/api/order', async (req, res) => {
+    try {
+        const { service_id, customer_name, customer_email, customer_phone, notes } = req.body;
+
+        if (!service_id || !customer_name || !customer_email) {
+            return res.status(400).json({ success: false, message: 'Service ID, name and email are required' });
+        }
+
+        const { data: service, error: serviceError } = await supabase
+            .from('services_sale')
+            .select('price, name')
+            .eq('id', service_id)
+            .single();
+
+        if (serviceError) throw serviceError;
+
+        const { data, error } = await supabase
+            .from('orders')
+            .insert({
+                service_id,
+                customer_name,
+                customer_email,
+                customer_phone: customer_phone || '',
+                amount: service.price,
+                notes: notes || '',
+                payment_status: 'pending',
+                order_status: 'processing'
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // Send admin notification
+        try {
+            await sendAdminNotification({
+                subject: '🛒 New Order Received!',
+                html: `
+                    <h2>New Order</h2>
+                    <p><strong>Service:</strong> ${service.name}</p>
+                    <p><strong>Customer:</strong> ${customer_name}</p>
+                    <p><strong>Email:</strong> ${customer_email}</p>
+                    <p><strong>Phone:</strong> ${customer_phone || 'N/A'}</p>
+                    <p><strong>Amount:</strong> $${service.price}</p>
+                `
+            });
+        } catch (e) {}
+
+        res.status(201).json({ success: true, message: 'Order placed successfully!', data });
+    } catch (error) {
+        console.error('Order error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Get all orders
+app.get('/api/admin/orders', requireAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('orders')
+            .select('*, services_sale(name)')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/* =========================================================
+   💬 LIVE CHAT SYSTEM - COMPLETE
+========================================================= */
+
+/* =========================================================
+   💬 CHAT SYSTEM - WITH SESSION SUPPORT
+========================================================= */
+
+// ✅ Generate Session ID (Simple)
+function generateSessionId() {
+    return 'guest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+}
+
+// ✅ Get ALL messages (Public)
+app.get('/api/chat/messages', async (req, res) => {
+    try {
+        const sessionId = req.query.session || req.headers['x-session-id'] || 'all';
+        
+        let query = supabase
+            .from('chat_messages')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        // Filter by session if provided
+        if (sessionId !== 'all') {
+            query = query.eq('session_id', sessionId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Send message (Public)
+app.post('/api/chat/send', async (req, res) => {
+    try {
+        const { sender_name, sender_email, message, session_id } = req.body;
+
+        if (!sender_name || !message) {
+            return res.status(400).json({ success: false, message: 'Name and message are required' });
+        }
+
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .insert({
+                sender_name: sender_name,
+                sender_email: sender_email || '',
+                message: message,
+                session_id: session_id || generateSessionId(),
+                is_read: false,
+                is_admin: false
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // ✅ Admin Notification
+        try {
+            await sendAdminNotification({
+                subject: `💬 New Chat from ${sender_name}`,
+                html: `
+                    <h2>New Chat Message</h2>
+                    <p><strong>From:</strong> ${sender_name}</p>
+                    <p><strong>Email:</strong> ${sender_email || 'N/A'}</p>
+                    <p><strong>Session:</strong> ${session_id || data.session_id}</p>
+                    <p><strong>Message:</strong> ${message}</p>
+                    <p><a href="/admin-chat.html?session=${data.session_id}">Reply Now</a></p>
+                `
+            });
+        } catch (e) {}
+
+        res.status(201).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Get sessions with messages
+app.get('/api/admin/chat-sessions', requireAuth, async (req, res) => {
+    try {
+        // Get all unique sessions
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select('session_id, sender_name, sender_email, created_at')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Group by session_id
+        const sessions = {};
+        data.forEach(msg => {
+            const sessionId = msg.session_id || 'unknown';
+            if (!sessions[sessionId]) {
+                sessions[sessionId] = {
+                    session_id: sessionId,
+                    sender_name: msg.sender_name || 'Guest',
+                    sender_email: msg.sender_email || '',
+                    last_message: msg.created_at,
+                    message_count: 0,
+                    unread_count: 0
+                };
+            }
+            sessions[sessionId].message_count++;
+            // Check if this message is unread
+            if (!msg.is_read && !msg.is_admin) {
+                sessions[sessionId].unread_count++;
+            }
+        });
+
+        const result = Object.values(sessions);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Get messages for specific session
+app.get('/api/admin/chat-session/:sessionId', requireAuth, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('session_id', sessionId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Mark all messages as read for session
+app.put('/api/admin/chat-mark-read/:sessionId', requireAuth, async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+
+        const { error } = await supabase
+            .from('chat_messages')
+            .update({ is_read: true })
+            .eq('session_id', sessionId)
+            .eq('is_read', false);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Reply to session
+app.post('/api/admin/chat-reply', requireAuth, async (req, res) => {
+    try {
+        const { reply, session_id } = req.body;
+
+        if (!reply || !session_id) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Reply and session_id are required' 
+            });
+        }
+
+        const adminName = req.user?.email?.split('@')[0] || 'Admin';
+
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .insert({
+                sender_name: adminName,
+                sender_email: req.user?.email || 'admin@portfolio.com',
+                message: reply,
+                session_id: session_id,
+                is_read: true,
+                is_admin: true
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Update order status
+// ✅ Admin - Update order with Notification
+app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { payment_status, order_status } = req.body;
+
+        // Get order details
+        const { data: order, error: fetchError } = await supabase
+            .from('orders')
+            .select('*, services_sale(name)')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        // Update order status
+        const { data, error } = await supabase
+            .from('orders')
+            .update({
+                payment_status: payment_status || 'pending',
+                order_status: order_status || 'processing',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Update order error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not update order',
+                error: error.message
+            });
+        }
+
+        // ✅ Create notification for customer
+        try {
+            const statusEmoji = {
+                'pending': '⏳',
+                'processing': '🔄',
+                'completed': '✅',
+                'cancelled': '❌'
+            };
+            
+            const statusMessages = {
+                'pending': 'Your order is pending review.',
+                'processing': 'Your order is being processed.',
+                'completed': 'Your order has been completed! 🎉',
+                'cancelled': 'Your order has been cancelled.'
+            };
+
+            const message = `${statusEmoji[order_status] || '📦'} Order #${order.id.substring(0, 8)}: ${statusMessages[order_status] || 'Status updated'}`;
+
+            await fetch(`http://localhost:${PORT}/api/admin/notifications`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': req.headers.authorization
+                },
+                body: JSON.stringify({
+                    order_id: order.id,
+                    customer_email: order.customer_email,
+                    customer_name: order.customer_name,
+                    message: message,
+                    type: 'order_update'
+                })
+            });
+            console.log('✅ Notification created for:', order.customer_email);
+        } catch (notifError) {
+            console.error('❌ Notification error:', notifError.message);
+        }
+
+        res.json({
+            success: true,
+            message: 'Order updated successfully!',
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Order update error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not update order',
+            error: error.message
+        });
+    }
+});
+
+// ✅ Admin - Delete order
+app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('orders')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Delete order error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not delete order',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Order deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Order delete error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not delete order',
+            error: error.message
+        });
+    }
+});
+
+/* =========================================================
+   📢 CUSTOMER NOTIFICATIONS API (Email Alternative)
+========================================================= */
+
+// ✅ Add notification (when order status changes)
+app.post('/api/admin/notifications', requireAuth, async (req, res) => {
+    try {
+        const { order_id, customer_email, customer_name, message, type } = req.body;
+
+        const { data, error } = await supabase
+            .from('customer_notifications')
+            .insert({
+                order_id,
+                customer_email,
+                customer_name,
+                message,
+                type: type || 'order_update',
+                status: 'unread'
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Get customer notifications
+app.get('/api/notifications', async (req, res) => {
+    try {
+        const email = req.query.email;
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+
+        const { data, error } = await supabase
+            .from('customer_notifications')
+            .select('*, orders(service_id, amount, services_sale(name))')
+            .eq('customer_email', email)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Mark notification as read
+app.put('/api/notifications/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('customer_notifications')
+            .update({
+                status: 'read',
+                read_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Client - Get all orders with service details (FIXED)
+app.get('/api/client/orders', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.substring(7);
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'Authentication required' });
+        }
+
+        // ✅ Get client email from token
+        let clientEmail = null;
+        try {
+            // Decode token to get client ID
+            const decoded = atob(token);
+            const clientId = decoded.split(':')[0];
+            
+            // Get client data
+            const { data: client, error: clientError } = await supabase
+                .from('clients')
+                .select('email')
+                .eq('id', clientId)
+                .single();
+            
+            if (!clientError && client) {
+                clientEmail = client.email;
+            }
+        } catch (e) {
+            console.warn('Could not decode token:', e.message);
+        }
+
+        // If we couldn't get email from token, try using header
+        if (!clientEmail) {
+            // You can also pass email in header or use a different method
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Could not identify client' 
+            });
+        }
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                services_sale!inner(
+                    id,
+                    name,
+                    category,
+                    image_url
+                )
+            `)
+            .eq('customer_email', clientEmail)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Transform data
+        const transformed = orders.map(order => ({
+            ...order,
+            service_name: order.services_sale?.name,
+            service_category: order.services_sale?.category,
+            service_image: order.services_sale?.image_url
+        }));
+
+        res.json({ success: true, data: transformed });
+    } catch (error) {
+        console.error('Orders error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Client - Get order tracking (FIXED)
+app.get('/api/client/order-tracking/:orderId', async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const token = req.headers.authorization?.substring(7);
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'Authentication required' });
+        }
+
+        // First verify the order belongs to this client
+        let clientEmail = null;
+        try {
+            const decoded = atob(token);
+            const clientId = decoded.split(':')[0];
+            
+            const { data: client, error: clientError } = await supabase
+                .from('clients')
+                .select('email')
+                .eq('id', clientId)
+                .single();
+            
+            if (!clientError && client) {
+                clientEmail = client.email;
+            }
+        } catch (e) {
+            console.warn('Could not decode token:', e.message);
+        }
+
+        if (!clientEmail) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Could not identify client' 
+            });
+        }
+
+        // Get order with service info - verify ownership
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('*, services_sale(name)')
+            .eq('id', orderId)
+            .eq('customer_email', clientEmail)
+            .single();
+
+        if (orderError) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Order not found or access denied' 
+            });
+        }
+
+        // Get tracking history
+        const { data: tracking, error: trackingError } = await supabase
+            .from('order_tracking')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('timestamp', { ascending: false });
+
+        if (trackingError) throw trackingError;
+
+        // If no tracking, create default
+        if (!tracking || tracking.length === 0) {
+            const defaultTracking = [
+                {
+                    status: order.order_status || 'pending',
+                    description: `Order ${order.order_status || 'pending'}`,
+                    timestamp: order.created_at,
+                    location: 'Online'
+                }
+            ];
+            return res.json({
+                success: true,
+                data: {
+                    service_name: order.services_sale?.name,
+                    tracking: defaultTracking
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                service_name: order.services_sale?.name,
+                tracking: tracking
+            }
+        });
+    } catch (error) {
+        console.error('Tracking error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+/* =========================================================
    FRONTEND FALLBACK
 ========================================================= */
+
+
+app.get('/service/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'service.html'));
+});
 
 app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
@@ -3750,5 +4513,6 @@ app.listen(PORT, () => {
     console.log('📄 PDF Resume Generator enabled');
     console.log('👥 Client Portal API ready');
     console.log('📊 Discipline Tracker API ready');
+    console.log('💼 Services Sale API ready');
     console.log('✅ All systems ready!');
 });

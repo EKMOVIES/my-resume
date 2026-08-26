@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Services Sale | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h2 { font-size: 28px; }
+        .header p { color: #6b7280; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #005f5f;
+        }
+        .stat-card .label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .form-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .form-card h3 { margin-bottom: 15px; }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full { grid-column: 1 / -1; }
+        label {
+            font-weight: 600;
+            margin-bottom: 7px;
+        }
+        input, textarea, select {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .save-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        .save-btn:hover { opacity: 0.9; }
+
+        .items-list {
+            display: grid;
+            gap: 20px;
+        }
+        .item-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            transition: all 0.3s;
+        }
+        .item-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+        }
+        .item-card .item-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #e5e7eb;
+        }
+        .item-card .item-content {
+            flex: 1;
+            min-width: 200px;
+        }
+        .item-card .item-content h3 { margin-bottom: 5px; }
+        .item-card .item-content .meta {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .item-card .item-content .price {
+            font-size: 18px;
+            font-weight: 700;
+            color: #005f5f;
+        }
+        .item-card .item-content .sale-price {
+            font-size: 14px;
+            color: #ef4444;
+            text-decoration: line-through;
+            margin-left: 8px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.available { background: #dcfce7; color: #166534; }
+        .badge.unavailable { background: #fee2e2; color: #991b1b; }
+        .badge.featured { background: #fef3c7; color: #92400e; }
+
+        .item-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .edit-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .toggle-btn {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .message {
+            display: none;
+            padding: 11px 15px;
+            border-radius: 7px;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+        }
+
+        .loading { color: #6b7280; padding: 20px; text-align: center; }
+        .empty { color: #6b7280; padding: 40px; text-align: center; }
+
+        @media (max-width: 700px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: auto; }
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+            .item-card { flex-direction: column; align-items: stretch; }
+            .item-card .item-image { width: 100%; height: 150px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="header">
+        <div>
+            <h2>💼 Manage Services for Sale</h2>
+            <p>Add, edit, and manage services or projects you want to sell</p>
+        </div>
+        <div>
+            <button onclick="window.open('/#services-sale', '_blank')" class="save-btn" style="background:#7c3aed;">
+                🔍 View Live
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats" id="statsContainer">
+        <div class="stat-card">
+            <div class="number" id="totalCount">0</div>
+            <div class="label">Total Services</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="availableCount">0</div>
+            <div class="label">✅ Available</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="featuredCount">0</div>
+            <div class="label">⭐ Featured</div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Form -->
+    <div class="form-card">
+        <h3 id="formTitle">➕ Add New Service</h3>
+        <form id="serviceForm">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="name">Service Name *</label>
+                    <input id="name" type="text" required placeholder="e.g., FoodHub Restaurant Website">
+                </div>
+                <div class="form-group full">
+                    <label for="slug">Slug * (URL: /service/your-slug)</label>
+                    <input id="slug" type="text" required placeholder="foodhub-restaurant-website">
+                    <small style="color:#6b7280;margin-top:4px;">Leave empty to auto-generate from name</small>
+                </div>
+                <div class="form-group full">
+                    <label for="description">Description *</label>
+                    <textarea id="description" required placeholder="Full description of the service..." rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="price">Price ($) *</label>
+                    <input id="price" type="number" step="0.01" required placeholder="299.99">
+                </div>
+                <div class="form-group">
+                    <label for="salePrice">Sale Price ($) (Optional)</label>
+                    <input id="salePrice" type="number" step="0.01" placeholder="199.99">
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category">
+                        <option value="website">🌐 Website</option>
+                        <option value="template">📄 Template</option>
+                        <option value="app">📱 App</option>
+                        <option value="service">💼 Service</option>
+                        <option value="other">📌 Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sortOrder">Sort Order</label>
+                    <input id="sortOrder" type="number" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="imageUrl">Image URL</label>
+                    <input id="imageUrl" type="url" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label for="demoUrl">Demo URL</label>
+                    <input id="demoUrl" type="url" placeholder="https://demo.example.com">
+                </div>
+                <div class="form-group full">
+                    <label for="features">Features (JSON format)</label>
+                    <textarea id="features" placeholder='{"Online Ordering": true, "Table Booking": true}' rows="3"></textarea>
+                    <small style="color:#6b7280;margin-top:4px;">Format: {"Feature Name": true/false}</small>
+                </div>
+                <div class="form-group" style="display:flex;gap:15px;align-items:center;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="isAvailable" checked> Available
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="isFeatured"> Featured
+                    </label>
+                </div>
+            </div>
+            <button type="submit" class="save-btn" id="submitBtn">➕ Add Service</button>
+            <button type="button" class="save-btn" id="cancelBtn" style="background:#6b7280;display:none;">Cancel</button>
+            <div id="message" class="message"></div>
+        </form>
+    </div>
+
+    <!-- Services List -->
+    <div id="loading" class="loading">Loading services...</div>
+    <div id="servicesList" class="items-list"></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let token = null;
+let editingId = null;
+
+async function getToken() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = '/admin.html';
+        return null;
+    }
+    token = session.access_token;
+    return token;
+}
+
+function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.textContent = text;
+    msg.className = `message ${type}`;
+    setTimeout(() => { msg.className = 'message'; }, 5000);
+}
+
+// ✅ Improved slugify function
+function slugify(text) {
+    if (!text) return '';
+    return text
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')           // Replace spaces with -
+        .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+        .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+        .replace(/^-+/, '')             // Trim - from start
+        .replace(/-+$/, '');            // Trim - from end
+}
+
+// ✅ Auto-generate slug from name on input
+let isAutoGenerated = true;
+document.getElementById('name').addEventListener('input', function() {
+    if (isAutoGenerated) {
+        const slugInput = document.getElementById('slug');
+        slugInput.value = slugify(this.value);
+    }
+});
+
+// ✅ Allow manual slug edit
+document.getElementById('slug').addEventListener('focus', function() {
+    isAutoGenerated = false;
+});
+
+document.getElementById('slug').addEventListener('blur', function() {
+    if (!this.value.trim()) {
+        const name = document.getElementById('name').value.trim();
+        this.value = slugify(name);
+        isAutoGenerated = true;
+    }
+});
+
+async function loadServices() {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('servicesList').innerHTML = '';
+
+        const response = await fetch('/api/services-sale', {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const data = result.data || [];
+        updateStats(data);
+        renderList(data);
+        document.getElementById('loading').style.display = 'none';
+    } catch (error) {
+        console.error(error);
+        document.getElementById('loading').textContent = '❌ ' + error.message;
+        document.getElementById('loading').style.display = 'block';
+    }
+}
+
+function updateStats(data) {
+    const total = data.length;
+    const available = data.filter(s => s.is_available !== false).length;
+    const featured = data.filter(s => s.is_featured === true).length;
+
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('availableCount').textContent = available;
+    document.getElementById('featuredCount').textContent = featured;
+}
+
+function renderList(data) {
+    const container = document.getElementById('servicesList');
+
+    if (data.length === 0) {
+        container.innerHTML = `<div class="empty">📭 No services added yet.</div>`;
+        return;
+    }
+
+    container.innerHTML = data.map(item => {
+        // ✅ Ensure slug exists
+        const slug = item.slug || slugify(item.name);
+        
+        return `
+        <div class="item-card">
+            ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" class="item-image" onerror="this.style.display='none'">` : ''}
+            <div class="item-content">
+                <h3>${item.name}</h3>
+                <div class="meta">
+                    📂 ${item.category || 'Uncategorized'} • 👁️ ${item.views || 0} views
+                    ${item.is_featured ? ' <span class="badge featured">⭐ Featured</span>' : ''}
+                    <span class="badge ${item.is_available !== false ? 'available' : 'unavailable'}">
+                        ${item.is_available !== false ? '✅ Available' : '❌ Unavailable'}
+                    </span>
+                </div>
+                <div class="meta">
+                    <span class="price">$${parseFloat(item.price).toFixed(2)}</span>
+                    ${item.sale_price ? `<span class="sale-price">$${parseFloat(item.sale_price).toFixed(2)}</span>` : ''}
+                </div>
+                <div class="meta" style="font-size:12px;color:#6b7280;margin-top:4px;">
+                    🔗 /service/${slug}
+                </div>
+                ${item.features ? `<div class="meta" style="font-size:11px;color:#6b7280;margin-top:4px;">📋 ${Object.keys(typeof item.features === 'string' ? JSON.parse(item.features) : item.features).length} features</div>` : ''}
+            </div>
+            <div class="item-actions">
+                <button class="toggle-btn" onclick="toggleAvailability('${item.id}', ${item.is_available !== false})">
+                    ${item.is_available !== false ? '📤 Unlist' : '📥 List'}
+                </button>
+                <button class="edit-btn" onclick="editItem('${item.id}')">✏️ Edit</button>
+                <button class="delete-btn" onclick="deleteItem('${item.id}')">🗑️ Delete</button>
+            </div>
+        </div>
+    `}).join('');
+}
+
+function getFormData() {
+    let features = {};
+    try {
+        const featuresText = document.getElementById('features').value.trim();
+        if (featuresText) {
+            features = JSON.parse(featuresText);
+        }
+    } catch (e) {
+        console.warn('Invalid JSON for features, using empty object');
+        features = {};
+    }
+
+    const name = document.getElementById('name').value.trim();
+    let slug = document.getElementById('slug').value.trim();
+    
+    // ✅ If slug is empty, generate from name
+    if (!slug) {
+        slug = slugify(name);
+    }
+
+    return {
+        name: name,
+        slug: slug,
+        description: document.getElementById('description').value.trim(),
+        price: parseFloat(document.getElementById('price').value) || 0,
+        sale_price: document.getElementById('salePrice').value ? parseFloat(document.getElementById('salePrice').value) : null,
+        category: document.getElementById('category').value,
+        image_url: document.getElementById('imageUrl').value.trim(),
+        demo_url: document.getElementById('demoUrl').value.trim(),
+        features: features,
+        is_available: document.getElementById('isAvailable').checked,
+        is_featured: document.getElementById('isFeatured').checked,
+        sort_order: parseInt(document.getElementById('sortOrder').value) || 0
+    };
+}
+
+function fillForm(data) {
+    document.getElementById('name').value = data.name || '';
+    document.getElementById('slug').value = data.slug || '';
+    document.getElementById('description').value = data.description || '';
+    document.getElementById('price').value = data.price || '';
+    document.getElementById('salePrice').value = data.sale_price || '';
+    document.getElementById('category').value = data.category || 'website';
+    document.getElementById('imageUrl').value = data.image_url || '';
+    document.getElementById('demoUrl').value = data.demo_url || '';
+    document.getElementById('features').value = data.features ? JSON.stringify(data.features, null, 2) : '';
+    document.getElementById('isAvailable').checked = data.is_available !== false;
+    document.getElementById('isFeatured').checked = data.is_featured || false;
+    document.getElementById('sortOrder').value = data.sort_order || 0;
+}
+
+function resetForm() {
+    document.getElementById('serviceForm').reset();
+    document.getElementById('features').value = '';
+    document.getElementById('isAvailable').checked = true;
+    document.getElementById('isFeatured').checked = false;
+    isAutoGenerated = true;
+    editingId = null;
+    document.getElementById('formTitle').textContent = '➕ Add New Service';
+    document.getElementById('submitBtn').textContent = '➕ Add Service';
+    document.getElementById('cancelBtn').style.display = 'none';
+}
+
+// ✅ Edit function - UPDATED
+async function editItem(id) {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        // ✅ Use ID-based endpoint
+        const response = await fetch(`/api/services-sale/id/${id}`, {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message || 'Could not load service');
+
+        fillForm(result.data);
+        editingId = id;
+        document.getElementById('formTitle').textContent = '✏️ Edit Service';
+        document.getElementById('submitBtn').textContent = '💾 Update Service';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        isAutoGenerated = false;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+        console.error('Edit error:', error);
+    }
+}
+
+async function toggleAvailability(id, current) {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch(`/api/admin/services-sale/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${t}`
+            },
+            body: JSON.stringify({ is_available: !current })
+        });
+
+        if (!response.ok) throw new Error('Could not update');
+
+        loadServices();
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+async function deleteItem(id) {
+    if (!confirm('Delete this service? This action cannot be undone!')) return;
+
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch(`/api/admin/services-sale/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+
+        if (!response.ok) throw new Error('Could not delete');
+
+        showMessage('🗑️ Service deleted successfully', 'success');
+        loadServices();
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+document.getElementById('serviceForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const t = await getToken();
+    if (!t) return;
+
+    const formData = getFormData();
+
+    // ✅ Validate slug
+    if (!formData.slug) {
+        formData.slug = slugify(formData.name);
+    }
+
+    if (!formData.name || !formData.slug || !formData.description || !formData.price) {
+        showMessage('⚠️ Name, slug, description and price are required.', 'error');
+        return;
+    }
+
+    const url = editingId ? `/api/admin/services-sale/${editingId}` : '/api/admin/services-sale';
+    const method = editingId ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${t}`
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message || 'Could not save');
+
+        showMessage(editingId ? '✅ Service updated!' : '✅ Service added!', 'success');
+        resetForm();
+        loadServices();
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+});
+
+document.getElementById('cancelBtn').addEventListener('click', resetForm);
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '/admin.html';
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = '/admin-dashboard.html';
+});
+
+loadServices();
+</script>
+</body>
+</html>

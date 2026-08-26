@@ -909,3 +909,68 @@ footer {
         padding-left: 20px;
     }
 }
+
+/* =========================================================
+   SOCIAL ICONS
+========================================================= */
+
+.social-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.social-icon:hover {
+    transform: translateY(-3px);
+}
+
+.social-icon.fb { background: #1877f2; color: white; }
+.social-icon.li { background: #0a66c2; color: white; }
+.social-icon.gh { background: #1f2937; color: white; }
+.social-icon.wa { background: #25d366; color: white; }
+.social-icon.msgr { background: #0084ff; color: white; }
+.social-icon.email { background: #ea4335; color: white; }
+
+/* Chat Box Animation */
+#chatBox {
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#chatToggle {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Services Sale Grid */
+.services-sale-grid .service-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px var(--shadow-color);
+    border-color: #005f5f;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #chatBox {
+        width: 95%;
+        right: 2.5%;
+        bottom: 10px;
+    }
+    
+    .services-sale-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
