@@ -472,6 +472,31 @@
             max-width: 400px;
         }
 
+        /* ✅ Live Demo Button */
+        .demo-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: #7c3aed;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .demo-btn:hover {
+            background: #6d28d9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+        }
+        .demo-btn.hidden {
+            display: none !important;
+        }
+
         @media (max-width: 768px) {
             .nav nav {
                 display: none;
@@ -554,6 +579,12 @@
             color: #5eead4;
             border-bottom-color: #5eead4;
         }
+        [data-theme="dark"] .demo-btn {
+            background: #7c3aed;
+        }
+        [data-theme="dark"] .demo-btn:hover {
+            background: #6d28d9;
+        }
     </style>
 </head>
 <body>
@@ -576,11 +607,13 @@
 <!-- Main Content -->
 <main>
     <div class="service-detail" id="serviceDetail">
+        <!-- Loading -->
         <div id="loading">
             <div class="spinner"></div>
             <p>Loading service details...</p>
         </div>
 
+        <!-- Content -->
         <div id="content" style="display:none;">
             <img id="serviceImage" class="service-image" src="" alt="Service Image">
 
@@ -596,10 +629,18 @@
                 </div>
             </div>
 
+            <!-- ✅ Live Demo Button -->
+            <div style="margin: 15px 0 20px;">
+                <a href="#" id="demoLink" target="_blank" class="demo-btn hidden">
+                    🚀 Live Demo
+                </a>
+            </div>
+
             <p class="service-description" id="serviceDescription">Loading description...</p>
 
             <div class="features-grid" id="featuresContainer"></div>
 
+            <!-- Login Required Box -->
             <div class="login-required-box" id="loginRequired">
                 <h3>🔐 Login Required</h3>
                 <p>Please login or create an account to purchase this service.</p>
@@ -609,6 +650,7 @@
                 </div>
             </div>
 
+            <!-- Order Form -->
             <div class="order-form" id="orderForm">
                 <h3>🛒 Purchase This Service</h3>
                 <form id="purchaseForm">
@@ -755,7 +797,6 @@ if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
 // ============================================================
 
 function generateToken(clientId) {
-    // ✅ Browser-compatible token generation using btoa()
     const data = `${clientId}:${Date.now()}`;
     return btoa(data);
 }
@@ -786,6 +827,7 @@ const finalPrice = document.getElementById('finalPrice');
 const buyBtn = document.getElementById('buyBtn');
 const orderMessage = document.getElementById('orderMessage');
 const purchaseForm = document.getElementById('purchaseForm');
+const demoLink = document.getElementById('demoLink');
 
 // Mobile menu
 document.getElementById('menuBtn').addEventListener('click', function() {
@@ -866,7 +908,7 @@ function switchTab(tab) {
 }
 
 // ============================================================
-// ✅ MODAL LOGIN - Manual (No Supabase Auth)
+// ✅ MODAL LOGIN
 // ============================================================
 
 document.getElementById('modalLoginForm').addEventListener('submit', async function(e) {
@@ -882,27 +924,40 @@ document.getElementById('modalLoginForm').addEventListener('submit', async funct
     error.style.display = 'none';
     
     try {
-        // ✅ Check client in database
-        const { data: client, error: clientError } = await supabaseClient
+        const { data, error: authError } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+        
+        if (authError) {
+            throw new Error(authError.message);
+        }
+        
+        const { data: clientData, error: clientError } = await supabaseClient
             .from('clients')
             .select('*')
             .eq('email', email)
             .single();
         
-        if (clientError || !client) {
-            throw new Error('Invalid email or password');
+        if (clientError) {
+            const { data: newClient, error: createError } = await supabaseClient
+                .from('clients')
+                .insert({
+                    name: email.split('@')[0],
+                    email: email,
+                    status: 'approved'
+                })
+                .select()
+                .single();
+            
+            if (!createError) {
+                localStorage.setItem('clientToken', data.session.access_token);
+                localStorage.setItem('clientData', JSON.stringify(newClient));
+            }
+        } else {
+            localStorage.setItem('clientToken', data.session.access_token);
+            localStorage.setItem('clientData', JSON.stringify(clientData));
         }
-        
-        // ✅ Check password
-        if (client.password_hash !== password) {
-            throw new Error('Invalid email or password');
-        }
-        
-        // ✅ Generate token using btoa()
-        const token = generateToken(client.id);
-        
-        localStorage.setItem('clientToken', token);
-        localStorage.setItem('clientData', JSON.stringify(client));
         
         closeModal();
         checkCustomerLogin();
@@ -919,7 +974,7 @@ document.getElementById('modalLoginForm').addEventListener('submit', async funct
 });
 
 // ============================================================
-// ✅ MODAL SIGNUP - Manual (No Supabase Auth)
+// ✅ MODAL SIGNUP
 // ============================================================
 
 document.getElementById('modalSignupForm').addEventListener('submit', async function(e) {
@@ -939,7 +994,6 @@ document.getElementById('modalSignupForm').addEventListener('submit', async func
     success.style.display = 'none';
     
     try {
-        // ✅ Check if email already exists
         const { data: existing, error: checkError } = await supabaseClient
             .from('clients')
             .select('email')
@@ -950,29 +1004,67 @@ document.getElementById('modalSignupForm').addEventListener('submit', async func
             throw new Error('Email already registered. Please login.');
         }
         
-        // ✅ Create client in database
+        const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                data: {
+                    name: name,
+                    phone: phone || ''
+                }
+            }
+        });
+        
+        if (authError) {
+            if (authError.message.includes('already registered')) {
+                throw new Error('Email already registered. Please login.');
+            }
+            throw new Error(authError.message);
+        }
+        
+        if (!authData.user) {
+            throw new Error('Could not create account. Please try again.');
+        }
+        
         const { data: client, error: createError } = await supabaseClient
             .from('clients')
             .insert({
                 name: name,
                 email: email,
                 phone: phone || '',
-                password_hash: password,
-                status: 'approved'
+                password_hash: 'supabase_auth',
+                status: 'approved',
+                user_id: authData.user.id
             })
             .select()
             .single();
         
         if (createError) {
-            console.error('Create error:', createError);
-            throw new Error('Could not create account. Please try again.');
+            console.warn('Client creation warning:', createError);
         }
         
-        // ✅ Generate token using btoa()
-        const token = generateToken(client.id);
+        const { data: loginData, error: loginError } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
         
-        localStorage.setItem('clientToken', token);
-        localStorage.setItem('clientData', JSON.stringify(client));
+        if (loginError) {
+            localStorage.setItem('clientToken', 'temp_' + Date.now());
+            localStorage.setItem('clientData', JSON.stringify({
+                name: name,
+                email: email,
+                phone: phone || '',
+                status: 'approved'
+            }));
+        } else {
+            localStorage.setItem('clientToken', loginData.session.access_token);
+            localStorage.setItem('clientData', JSON.stringify(client || {
+                name: name,
+                email: email,
+                phone: phone || '',
+                status: 'approved'
+            }));
+        }
         
         success.textContent = '✅ Account created successfully!';
         success.style.display = 'block';
@@ -1074,6 +1166,7 @@ async function loadService() {
         serviceCategory.textContent = service.category || 'Service';
         serviceDescription.textContent = service.description || 'No description available.';
 
+        // ✅ Price
         const price = parseFloat(service.price) || 0;
         const sale = parseFloat(service.sale_price) || 0;
         const displayPrice = sale > 0 && sale < price ? sale : price;
@@ -1090,6 +1183,7 @@ async function loadService() {
             saleBadge.style.display = 'none';
         }
 
+        // ✅ Image
         if (service.image_url) {
             serviceImage.src = service.image_url;
             serviceImage.alt = service.name;
@@ -1098,6 +1192,15 @@ async function loadService() {
             serviceImage.style.display = 'none';
         }
 
+        // ✅ Demo URL Button
+        if (service.demo_url && service.demo_url.trim()) {
+            demoLink.href = service.demo_url;
+            demoLink.classList.remove('hidden');
+        } else {
+            demoLink.classList.add('hidden');
+        }
+
+        // ✅ Features
         if (service.features) {
             let features;
             if (typeof service.features === 'string') {
@@ -1140,9 +1243,10 @@ async function loadService() {
 }
 
 // ============================================================
-// ✅ ORDER FORM
+// ✅ ORDER FORM WITH PAYMENT
 // ============================================================
 
+// ✅ Order Form - Updated
 purchaseForm.addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -1174,44 +1278,87 @@ purchaseForm.addEventListener('submit', async function(e) {
     }
 
     try {
-        const response = await fetch('/api/order', {
+        // ✅ Step 1: Create Order
+        console.log('📝 Creating order...');
+        
+        const orderResponse = await fetch('/api/order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
 
-        const result = await response.json();
+        const orderResult = await orderResponse.json();
+        console.log('📦 Order Response:', orderResult);
 
-        if (!response.ok) {
-            throw new Error(result.message || 'Order failed');
+        if (!orderResponse.ok) {
+            throw new Error(orderResult.message || 'Could not create order');
         }
 
-        msg.innerHTML = `
-            ✅ ${result.message || 'Order placed successfully!'}
-            <br><small>We will contact you within 24 hours.</small>
-            <br><small>📢 Check your <a href="/client-dashboard.html" style="color:#005f5f;font-weight:600;">dashboard</a> for updates.</small>
-        `;
-        msg.className = 'message success';
-        msg.style.display = 'block';
+        const order = orderResult.data;
+        console.log('✅ Order created:', order.id);
 
-        this.reset();
-        btn.innerHTML = `✅ Order Placed!`;
+        // ✅ Step 2: Get amount
+        let amount = 0;
+        try {
+            const priceText = finalPrice.textContent.replace('$', '').trim();
+            amount = parseFloat(priceText) || 0;
+        } catch (e) {
+            amount = 0;
+        }
+        console.log('💰 Amount:', amount);
 
-        setTimeout(() => {
-            btn.innerHTML = `Buy Now — <span class="price-display">${finalPrice.textContent}</span>`;
-            btn.disabled = false;
-        }, 5000);
+        // ✅ Step 3: Initiate Payment
+        console.log('💳 Initiating payment...');
+        
+        const paymentResponse = await fetch('/api/payment/initiate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                order_id: order.id,
+                customer_name: data.customer_name,
+                customer_email: data.customer_email,
+                amount: amount
+            })
+        });
+
+        const paymentResult = await paymentResponse.json();
+        console.log('💳 Payment Result:', paymentResult);
+
+        if (!paymentResponse.ok) {
+            throw new Error(paymentResult.message || 'Could not initiate payment');
+        }
+
+        // ✅ Step 4: Redirect
+        if (paymentResult.redirect_url) {
+            console.log('🔀 Redirecting to:', paymentResult.redirect_url);
+            window.location.href = paymentResult.redirect_url;
+        } else {
+            // ✅ If no redirect_url, show success message
+            msg.innerHTML = `
+                ✅ Order placed successfully!<br>
+                <small>We will contact you within 24 hours.</small>
+                <br><br>
+                <a href="/client-dashboard.html" style="color:#005f5f;font-weight:600;">📊 View Dashboard</a>
+            `;
+            msg.className = 'message success';
+            msg.style.display = 'block';
+            btn.innerHTML = '✅ Order Placed!';
+            
+            setTimeout(() => {
+                btn.innerHTML = `Buy Now — <span class="price-display">${finalPrice.textContent}</span>`;
+                btn.disabled = false;
+            }, 5000);
+        }
 
     } catch (error) {
-        console.error('Order error:', error);
+        console.error('❌ Order error:', error);
         msg.textContent = '❌ ' + error.message;
         msg.className = 'message error';
         msg.style.display = 'block';
         btn.disabled = false;
-        btn.innerHTML = `Buy Now — <span class="price-display">${finalPrice.textContent}</span>`;
+        btn.innerHTML = `Buy Now — <span class="price-display">${finalPrice ? finalPrice.textContent : '$0'}</span>`;
     }
 });
-
 // ============================================================
 // ✅ CLOSE MODAL ON OVERLAY CLICK
 // ============================================================

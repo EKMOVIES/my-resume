@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Notifications | Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .navbar h1 { font-size: 21px; }
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255,255,255,0.5);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+        .header {
+            margin-bottom: 25px;
+        }
+        .header h2 { font-size: 28px; margin-bottom: 7px; }
+        .header p { color: #6b7280; }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 25px;
+        }
+        .card h3 { margin-bottom: 15px; color: #005f5f; }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .form-group .radio-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .form-group .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: #005f5f;
+            color: white;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #1f2937;
+        }
+
+        .message {
+            display: none;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+            border: 1px solid #a7e0b8;
+        }
+        .message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+            border: 1px solid #f5c6c6;
+        }
+        .message.info {
+            display: block;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .client-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .client-list .client-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .client-list .client-item:last-child {
+            border-bottom: none;
+        }
+        .client-list .client-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .history-list {
+            display: grid;
+            gap: 15px;
+        }
+        .history-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #005f5f;
+        }
+        .history-item .title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .history-item .meta {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+        .history-item .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-all { background: #dbeafe; color: #1e40af; }
+        .badge-specific { background: #dcfce7; color: #166534; }
+
+        @media (max-width: 600px) {
+            .navbar { padding: 0 15px; }
+            .navbar h1 { font-size: 17px; }
+            .form-group .radio-group { flex-direction: column; gap: 8px; }
+            .client-list { max-height: 150px; }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="header">
+        <h2>📢 Send Notification</h2>
+        <p>Send announcements, offers, or updates to your clients</p>
+    </div>
+
+    <!-- Send Notification Form -->
+    <div class="card">
+        <h3>📝 Compose Notification</h3>
+        <form id="notificationForm">
+            <div class="form-group">
+                <label for="notifTitle">Title *</label>
+                <input type="text" id="notifTitle" placeholder="e.g., Special Offer for You!" required>
+            </div>
+
+            <div class="form-group">
+                <label for="notifMessage">Message *</label>
+                <textarea id="notifMessage" placeholder="Write your announcement or offer details..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Notification Type</label>
+                <select id="notifType">
+                    <option value="announcement">📢 Announcement</option>
+                    <option value="offer">🎉 Special Offer</option>
+                    <option value="update">🔄 Update</option>
+                    <option value="promotion">📣 Promotion</option>
+                    <option value="general">📌 General</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Target Clients</label>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="targetType" value="all" checked>
+                        All Clients
+                    </label>
+                    <label>
+                        <input type="radio" name="targetType" value="specific">
+                        Specific Clients
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" id="clientListGroup" style="display:none;">
+                <label>Select Clients</label>
+                <div class="client-list" id="clientList">
+                    <div style="text-align:center;padding:10px;color:#6b7280;">Loading clients...</div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="sendBtn">📤 Send Notification</button>
+            <div id="message" class="message"></div>
+        </form>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+        <h3>📋 Notification History</h3>
+        <div id="historyContainer">
+            <div style="text-align:center;padding:20px;color:#6b7280;">Loading history...</div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let token = null;
+let allClients = [];
+
+async function getToken() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = '/admin.html';
+        return null;
+    }
+    token = session.access_token;
+    return token;
+}
+
+// ============================================================
+// ✅ LOAD CLIENTS
+// ============================================================
+
+async function loadClients() {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch('/api/admin/clients', {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        allClients = result.data || [];
+        renderClientList(allClients);
+
+    } catch (error) {
+        document.getElementById('clientList').innerHTML = `
+            <div style="text-align:center;padding:10px;color:#dc2626;">
+                ❌ ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderClientList(clients) {
+    const container = document.getElementById('clientList');
+
+    if (clients.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:10px;color:#6b7280;">
+                No clients found
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = clients.map(c => `
+        <div class="client-item">
+            <input type="checkbox" name="clientIds" value="${c.id}" id="client_${c.id}">
+            <label for="client_${c.id}" style="flex:1;cursor:pointer;">
+                <strong>${c.name}</strong>
+                <span style="color:#6b7280;font-size:13px;margin-left:8px;">${c.email}</span>
+            </label>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// ✅ TARGET TYPE TOGGLE
+// ============================================================
+
+document.querySelectorAll('input[name="targetType"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const clientList = document.getElementById('clientListGroup');
+        if (this.value === 'specific') {
+            clientList.style.display = 'block';
+        } else {
+            clientList.style.display = 'none';
+        }
+    });
+});
+
+// ============================================================
+// ✅ SEND NOTIFICATION
+// ============================================================
+
+document.getElementById('notificationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const t = await getToken();
+    if (!t) return;
+
+    const btn = document.getElementById('sendBtn');
+    const msg = document.getElementById('message');
+    const title = document.getElementById('notifTitle').value.trim();
+    const message = document.getElementById('notifMessage').value.trim();
+    const notificationType = document.getElementById('notifType').value;
+    const targetType = document.querySelector('input[name="targetType"]:checked').value;
+
+    if (!title || !message) {
+        msg.textContent = '⚠️ Please fill in title and message.';
+        msg.className = 'message error';
+        msg.style.display = 'block';
+        return;
+    }
+
+    let targetClients = [];
+    if (targetType === 'specific') {
+        const checkboxes = document.querySelectorAll('input[name="clientIds"]:checked');
+        targetClients = Array.from(checkboxes).map(cb => cb.value);
+        if (targetClients.length === 0) {
+            msg.textContent = '⚠️ Please select at least one client.';
+            msg.className = 'message error';
+            msg.style.display = 'block';
+            return;
+        }
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending...';
+    msg.className = 'message';
+    msg.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/admin/notifications/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${t}`
+            },
+            body: JSON.stringify({
+                title,
+                message,
+                notification_type: notificationType,
+                target_type: targetType,
+                target_clients: targetClients
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || 'Could not send notification');
+        }
+
+        msg.innerHTML = `
+            ✅ ${result.message}
+            <br><small>${result.data?.sent_count || 0} clients notified</small>
+        `;
+        msg.className = 'message success';
+        msg.style.display = 'block';
+
+        this.reset();
+        document.getElementById('notifType').value = 'announcement';
+        document.querySelector('input[name="targetType"][value="all"]').checked = true;
+        document.getElementById('clientListGroup').style.display = 'none';
+
+        loadHistory();
+
+    } catch (error) {
+        msg.textContent = '❌ ' + error.message;
+        msg.className = 'message error';
+        msg.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = '📤 Send Notification';
+});
+
+// ============================================================
+// ✅ LOAD HISTORY
+// ============================================================
+
+async function loadHistory() {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch('/api/admin/notifications', {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const notifications = result.data || [];
+        renderHistory(notifications);
+
+    } catch (error) {
+        document.getElementById('historyContainer').innerHTML = `
+            <div style="text-align:center;padding:20px;color:#dc2626;">
+                ❌ ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderHistory(notifications) {
+    const container = document.getElementById('historyContainer');
+
+    if (notifications.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:20px;color:#6b7280;">
+                No notifications sent yet
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = notifications.map(n => `
+        <div class="history-item">
+            <div class="title">${n.title}</div>
+            <div style="color:#4b5563;margin-top:5px;">${n.message}</div>
+            <div class="meta">
+                <span class="badge ${n.target_type === 'all' ? 'badge-all' : 'badge-specific'}">
+                    ${n.target_type === 'all' ? '👥 All Clients' : '🎯 Specific Clients'}
+                </span>
+                <span style="margin-left:10px;">📅 ${new Date(n.created_at).toLocaleString()}</span>
+                ${n.sent_at ? `<span style="margin-left:10px;">✅ Sent</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// ✅ LOGOUT & BACK
+// ============================================================
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '/admin.html';
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = '/admin-dashboard.html';
+});
+
+// ============================================================
+// ✅ INIT
+// ============================================================
+
+getToken().then(() => {
+    loadClients();
+    loadHistory();
+});
+</script>
+</body>
+</html>

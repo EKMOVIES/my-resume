@@ -111,6 +111,56 @@
         }
         .save-btn:hover { opacity: 0.9; }
 
+        /* ✅ Cloudinary Upload Styles */
+        .file-upload-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-upload-wrapper .upload-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .file-upload-wrapper .upload-btn:hover { opacity: 0.9; }
+        #uploadStatus {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        #imagePreview {
+            margin-top: 10px;
+        }
+        #imagePreview img {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            object-fit: cover;
+        }
+        #imagePreview button {
+            display: block;
+            margin-top: 5px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        #imagePreview button:hover { opacity: 0.9; }
+
         .items-list {
             display: grid;
             gap: 20px;
@@ -251,7 +301,6 @@
         </div>
     </div>
 
-    <!-- Stats -->
     <div class="stats" id="statsContainer">
         <div class="stat-card">
             <div class="number" id="totalCount">0</div>
@@ -267,7 +316,6 @@
         </div>
     </div>
 
-    <!-- Add/Edit Form -->
     <div class="form-card">
         <h3 id="formTitle">➕ Add New Service</h3>
         <form id="serviceForm">
@@ -307,10 +355,24 @@
                     <label for="sortOrder">Sort Order</label>
                     <input id="sortOrder" type="number" value="0">
                 </div>
-                <div class="form-group">
-                    <label for="imageUrl">Image URL</label>
-                    <input id="imageUrl" type="url" placeholder="https://example.com/image.jpg">
+
+                <!-- ✅ Cloudinary Image Upload -->
+                <div class="form-group full">
+                    <label>Service Image</label>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <input id="imageUrl" type="url" placeholder="https://example.com/image.jpg" style="flex:1;min-width:200px;">
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <span style="color:#6b7280;">OR</span>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="imageUpload" accept="image/*">
+                                <button type="button" class="upload-btn">📤 Upload Image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="uploadStatus"></div>
+                    <div id="imagePreview"></div>
                 </div>
+
                 <div class="form-group">
                     <label for="demoUrl">Demo URL</label>
                     <input id="demoUrl" type="url" placeholder="https://demo.example.com">
@@ -335,7 +397,6 @@
         </form>
     </div>
 
-    <!-- Services List -->
     <div id="loading" class="loading">Loading services...</div>
     <div id="servicesList" class="items-list"></div>
 </main>
@@ -346,8 +407,126 @@ const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// ============================================================
+// ✅ CLOUDINARY CONFIGURATION
+// ============================================================
+
+const CLOUD_NAME = "estyakproject";
+const UPLOAD_PRESET = "resume_projects";
+
+// ✅ Upload Image to Cloudinary
+async function uploadImageToCloudinary(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+    formData.append('cloud_name', CLOUD_NAME);
+
+    const status = document.getElementById('uploadStatus');
+    status.textContent = '⏳ Uploading to Cloudinary...';
+    status.style.color = '#2563eb';
+
+    try {
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+            {
+                method: 'POST',
+                body: formData
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error?.message || 'Upload failed');
+        }
+
+        status.textContent = '✅ Upload successful!';
+        status.style.color = '#16a34a';
+
+        return data.secure_url;
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        status.textContent = '❌ ' + error.message;
+        status.style.color = '#dc2626';
+        return null;
+    }
+}
+
+// ✅ Show Image Preview
+function showImagePreview(url) {
+    const preview = document.getElementById('imagePreview');
+    if (!preview) return;
+
+    if (url) {
+        preview.innerHTML = `
+            <img src="${url}" alt="Service Image">
+            <button type="button" onclick="removeImage()">✕ Remove</button>
+        `;
+        preview.style.display = 'block';
+    } else {
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+    }
+}
+
+// ✅ Remove Image
+window.removeImage = function() {
+    document.getElementById('imageUrl').value = '';
+    document.getElementById('imageUpload').value = '';
+    showImagePreview('');
+    document.getElementById('uploadStatus').textContent = '';
+};
+
+// ============================================================
+// ✅ IMAGE UPLOAD EVENT
+// ============================================================
+
+document.getElementById('imageUpload').addEventListener('change', async function(e) {
+    const file = this.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        document.getElementById('uploadStatus').textContent = '❌ Please select an image file.';
+        document.getElementById('uploadStatus').style.color = '#dc2626';
+        this.value = '';
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        document.getElementById('uploadStatus').textContent = '❌ Image size must be less than 5MB.';
+        document.getElementById('uploadStatus').style.color = '#dc2626';
+        this.value = '';
+        return;
+    }
+
+    const imageUrl = await uploadImageToCloudinary(file);
+
+    if (imageUrl) {
+        document.getElementById('imageUrl').value = imageUrl;
+        showImagePreview(imageUrl);
+    }
+
+    this.value = '';
+});
+
+// ✅ Image URL input change
+document.getElementById('imageUrl').addEventListener('input', function() {
+    const url = this.value.trim();
+    if (url) {
+        showImagePreview(url);
+    } else {
+        showImagePreview('');
+    }
+});
+
+// ============================================================
+// ✅ FORM FUNCTIONS
+// ============================================================
+
 let token = null;
 let editingId = null;
+let isAutoGenerated = true;
 
 async function getToken() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -366,30 +545,25 @@ function showMessage(text, type) {
     setTimeout(() => { msg.className = 'message'; }, 5000);
 }
 
-// ✅ Improved slugify function
 function slugify(text) {
     if (!text) return '';
     return text
         .toString()
         .toLowerCase()
         .trim()
-        .replace(/\s+/g, '-')           // Replace spaces with -
-        .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
-        .replace(/\-\-+/g, '-')         // Replace multiple - with single -
-        .replace(/^-+/, '')             // Trim - from start
-        .replace(/-+$/, '');            // Trim - from end
+        .replace(/\s+/g, '-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/\-\-+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '');
 }
 
-// ✅ Auto-generate slug from name on input
-let isAutoGenerated = true;
 document.getElementById('name').addEventListener('input', function() {
     if (isAutoGenerated) {
-        const slugInput = document.getElementById('slug');
-        slugInput.value = slugify(this.value);
+        document.getElementById('slug').value = slugify(this.value);
     }
 });
 
-// ✅ Allow manual slug edit
 document.getElementById('slug').addEventListener('focus', function() {
     isAutoGenerated = false;
 });
@@ -447,9 +621,7 @@ function renderList(data) {
     }
 
     container.innerHTML = data.map(item => {
-        // ✅ Ensure slug exists
         const slug = item.slug || slugify(item.name);
-        
         return `
         <div class="item-card">
             ${item.image_url ? `<img src="${item.image_url}" alt="${item.name}" class="item-image" onerror="this.style.display='none'">` : ''}
@@ -469,7 +641,6 @@ function renderList(data) {
                 <div class="meta" style="font-size:12px;color:#6b7280;margin-top:4px;">
                     🔗 /service/${slug}
                 </div>
-                ${item.features ? `<div class="meta" style="font-size:11px;color:#6b7280;margin-top:4px;">📋 ${Object.keys(typeof item.features === 'string' ? JSON.parse(item.features) : item.features).length} features</div>` : ''}
             </div>
             <div class="item-actions">
                 <button class="toggle-btn" onclick="toggleAvailability('${item.id}', ${item.is_available !== false})">
@@ -490,17 +661,12 @@ function getFormData() {
             features = JSON.parse(featuresText);
         }
     } catch (e) {
-        console.warn('Invalid JSON for features, using empty object');
         features = {};
     }
 
     const name = document.getElementById('name').value.trim();
     let slug = document.getElementById('slug').value.trim();
-    
-    // ✅ If slug is empty, generate from name
-    if (!slug) {
-        slug = slugify(name);
-    }
+    if (!slug) slug = slugify(name);
 
     return {
         name: name,
@@ -531,11 +697,19 @@ function fillForm(data) {
     document.getElementById('isAvailable').checked = data.is_available !== false;
     document.getElementById('isFeatured').checked = data.is_featured || false;
     document.getElementById('sortOrder').value = data.sort_order || 0;
+
+    if (data.image_url) {
+        showImagePreview(data.image_url);
+    }
 }
 
 function resetForm() {
     document.getElementById('serviceForm').reset();
     document.getElementById('features').value = '';
+    document.getElementById('imageUrl').value = '';
+    document.getElementById('imageUpload').value = '';
+    showImagePreview('');
+    document.getElementById('uploadStatus').textContent = '';
     document.getElementById('isAvailable').checked = true;
     document.getElementById('isFeatured').checked = false;
     isAutoGenerated = true;
@@ -545,19 +719,17 @@ function resetForm() {
     document.getElementById('cancelBtn').style.display = 'none';
 }
 
-// ✅ Edit function - UPDATED
 async function editItem(id) {
     const t = await getToken();
     if (!t) return;
 
     try {
-        // ✅ Use ID-based endpoint
         const response = await fetch(`/api/services-sale/id/${id}`, {
             headers: { 'Authorization': `Bearer ${t}` }
         });
         const result = await response.json();
 
-        if (!response.ok) throw new Error(result.message || 'Could not load service');
+        if (!response.ok) throw new Error('Could not load service');
 
         fillForm(result.data);
         editingId = id;
@@ -568,7 +740,6 @@ async function editItem(id) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
         showMessage('❌ ' + error.message, 'error');
-        console.error('Edit error:', error);
     }
 }
 
@@ -623,7 +794,6 @@ document.getElementById('serviceForm').addEventListener('submit', async (e) => {
 
     const formData = getFormData();
 
-    // ✅ Validate slug
     if (!formData.slug) {
         formData.slug = slugify(formData.name);
     }

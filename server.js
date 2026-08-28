@@ -5,7 +5,7 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const pdf = require('html-pdf');
 
-// Nodemailer - optional (যদি ইনস্টল থাকে)
+// Nodemailer - optional
 let nodemailer;
 try {
     nodemailer = require('nodemailer');
@@ -14,6 +14,12 @@ try {
     console.warn('⚠️ Nodemailer not installed. Email notifications disabled.');
     nodemailer = null;
 }
+const SSLCommerz = require('sslcommerz-lts');
+
+// SSLCommerz Config
+const store_id = process.env.STORE_ID || 'myres6a8f1c4131455';
+const store_passwd = process.env.STORE_PASSWORD || '0987654321';
+const is_live = false;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -134,6 +140,101 @@ async function sendClientEmail({ to, subject, html }) {
     };
 
     await transporter.sendMail(mailOptions);
+}
+
+/* =========================================================
+   HELPER: Create Admin Notification
+========================================================= */
+
+async function createAdminNotification({ type, title, message, link, icon, color }) {
+    try {
+        const { data, error } = await supabase
+            .from('admin_notifications')
+            .insert({
+                type: type || 'system',
+                title: title || 'Notification',
+                message: message || '',
+                link: link || null,
+                icon: icon || '📌',
+                color: color || '#005f5f',
+                is_read: false,
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Create notification error:', error);
+            return null;
+        }
+        return data;
+    } catch (error) {
+        console.error('Create notification error:', error);
+        return null;
+    }
+}
+
+/* =========================================================
+   HELPER: Extract Client ID from Token
+========================================================= */
+
+async function extractClientIdFromToken(token) {
+    if (!token) return null;
+
+    console.log('🔍 Extracting client ID from token:', token.substring(0, 30) + '...');
+
+    // Method 1: Check if it's a temp token (temp_timestamp)
+    if (token.startsWith('temp_')) {
+        console.log('⚠️ Temp token detected, trying to find client from localStorage...');
+        return null;
+    }
+
+    // Method 2: Try Supabase auth
+    try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+        if (!userError && user) {
+            console.log('👤 User found via Supabase:', user.email);
+            const { data: client, error: clientError } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('email', user.email)
+                .single();
+            
+            if (!clientError && client) {
+                console.log('✅ Client found via email:', client.id);
+                return client.id;
+            }
+        }
+    } catch (e) {
+        console.warn('Supabase auth failed:', e.message);
+    }
+
+    // Method 3: Legacy token decode (base64)
+    try {
+        const decoded = Buffer.from(token, 'base64').toString('utf-8');
+        console.log('📝 Decoded token:', decoded);
+        const parts = decoded.split(':');
+        if (parts.length >= 1) {
+            const id = parts[0];
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(id)) {
+                console.log('✅ Client ID from legacy token:', id);
+                return id;
+            }
+        }
+    } catch (e) {
+        // Continue
+    }
+
+    // Method 4: Check if token itself is a UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(token)) {
+        console.log('✅ Token is a valid UUID:', token);
+        return token;
+    }
+
+    console.error('❌ Could not extract client ID from token');
+    return null;
 }
 
 /* =========================================================
@@ -1061,7 +1162,8 @@ app.post('/api/messages', async (req, res) => {
                 email,
                 subject: subject || '',
                 message,
-                is_read: false
+                is_read: false,
+                created_at: new Date().toISOString()
             })
             .select()
             .single();
@@ -1075,7 +1177,19 @@ app.post('/api/messages', async (req, res) => {
             });
         }
 
-        // Send email notification
+        try {
+            await createAdminNotification({
+                type: 'contact',
+                title: '✉️ New Contact Message!',
+                message: `${name} (${email}) sent a message`,
+                link: '/admin-messages.html',
+                icon: '✉️',
+                color: '#f59e0b'
+            });
+        } catch (notifError) {
+            console.warn('Notification error:', notifError.message);
+        }
+
         try {
             await sendEmailNotification({ name, email, subject, message });
         } catch (emailError) {
@@ -1087,6 +1201,7 @@ app.post('/api/messages', async (req, res) => {
             message: 'Message sent successfully.',
             data
         });
+
     } catch (error) {
         console.error('Message POST server error:', error);
         res.status(500).json({
@@ -1432,177 +1547,6 @@ app.delete('/api/admin/blog/:id', requireAuth, async (req, res) => {
 });
 
 /* =========================================================
-   BLOG COMMENTS API
-========================================================= */
-
-app.get('/api/blog/:postId/comments', async (req, res) => {
-    try {
-        const { postId } = req.params;
-
-        const { data, error } = await supabase
-            .from('blog_comments')
-            .select('*')
-            .eq('post_id', postId)
-            .eq('is_approved', true)
-            .order('created_at', { ascending: true });
-
-        if (error) {
-            console.error('Comments load error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not load comments.',
-                error: error.message
-            });
-        }
-
-        res.json({ success: true, data: data || [] });
-    } catch (error) {
-        console.error('Comments GET server error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error.'
-        });
-    }
-});
-
-app.post('/api/blog/:postId/comments', async (req, res) => {
-    try {
-        const { postId } = req.params;
-        const { name, email, comment } = req.body;
-
-        if (!name || !comment) {
-            return res.status(400).json({
-                success: false,
-                message: 'Name and comment are required.'
-            });
-        }
-
-        const { data, error } = await supabase
-            .from('blog_comments')
-            .insert({
-                post_id: parseInt(postId),
-                name,
-                email: email || '',
-                comment,
-                is_approved: false
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Comment create error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not post comment.',
-                error: error.message
-            });
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Comment posted successfully. Awaiting approval.',
-            data
-        });
-    } catch (error) {
-        console.error('Comment POST server error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error.'
-        });
-    }
-});
-
-app.get('/api/admin/comments', requireAuth, async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('blog_comments')
-            .select('*, blog_posts(title)')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Admin comments load error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not load comments.',
-                error: error.message
-            });
-        }
-
-        res.json({ success: true, data: data || [] });
-    } catch (error) {
-        console.error('Admin comments GET server error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error.'
-        });
-    }
-});
-
-app.put('/api/admin/comments/:id/approve', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { data, error } = await supabase
-            .from('blog_comments')
-            .update({ is_approved: true })
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Comment approve error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not approve comment.',
-                error: error.message
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Comment approved successfully.',
-            data
-        });
-    } catch (error) {
-        console.error('Comment approve PUT server error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error.'
-        });
-    }
-});
-
-app.delete('/api/admin/comments/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { error } = await supabase
-            .from('blog_comments')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Comment delete error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not delete comment.',
-                error: error.message
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Comment deleted successfully.'
-        });
-    } catch (error) {
-        console.error('Comment DELETE server error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error.'
-        });
-    }
-});
-
-/* =========================================================
    TESTIMONIALS API
 ========================================================= */
 
@@ -1788,7 +1732,6 @@ app.delete('/api/admin/testimonials/:id', requireAuth, async (req, res) => {
    FILE MANAGER API
 ========================================================= */
 
-// PUBLIC API (No Auth Required)
 app.get('/api/public/files', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -1816,7 +1759,6 @@ app.get('/api/public/files', async (req, res) => {
     }
 });
 
-// ADMIN API (Auth Required)
 app.get('/api/admin/files', requireAuth, async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -1837,41 +1779,6 @@ app.get('/api/admin/files', requireAuth, async (req, res) => {
         res.json({ success: true, data: data || [] });
     } catch (error) {
         console.error('Files GET server error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error.'
-        });
-    }
-});
-
-app.get('/api/admin/files/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { data, error } = await supabase
-            .from('file_manager')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) {
-            console.error('File load error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not load file.',
-                error: error.message
-            });
-        }
-
-        if (!data) {
-            return res.status(404).json({
-                success: false,
-                message: 'File not found.'
-            });
-        }
-
-        res.json({ success: true, data });
-    } catch (error) {
-        console.error('File GET server error:', error);
         res.status(500).json({
             success: false,
             message: 'Server error.'
@@ -2002,7 +1909,6 @@ app.delete('/api/admin/files/:id', requireAuth, async (req, res) => {
    📄 PDF RESUME GENERATOR
 ========================================================= */
 
-// Helper: Generate Resume HTML
 function generateResumeHTML(profile, education, experience, skills, projects) {
     const name = profile?.name || 'Your Name';
     const title = profile?.title || 'Professional';
@@ -2017,7 +1923,6 @@ function generateResumeHTML(profile, education, experience, skills, projects) {
         github: profile?.github_url || ''
     };
 
-    // Education HTML
     const educationHTML = education && education.length > 0 ? education.map(item => `
         <div class="edu-item">
             <h4>${item.institution || 'Institution'}</h4>
@@ -2027,7 +1932,6 @@ function generateResumeHTML(profile, education, experience, skills, projects) {
         </div>
     `).join('') : '<p>No education added yet.</p>';
 
-    // Experience HTML
     const experienceHTML = experience && experience.length > 0 ? experience.map(item => `
         <div class="exp-item">
             <h4>${item.company || 'Company'}</h4>
@@ -2037,7 +1941,6 @@ function generateResumeHTML(profile, education, experience, skills, projects) {
         </div>
     `).join('') : '<p>No experience added yet.</p>';
 
-    // Skills HTML
     const skillsHTML = skills && skills.length > 0 ? skills.map(item => `
         <div class="skill-item">
             <span class="skill-name">${item.name || 'Skill'}</span>
@@ -2047,7 +1950,6 @@ function generateResumeHTML(profile, education, experience, skills, projects) {
         </div>
     `).join('') : '<p>No skills added yet.</p>';
 
-    // Projects HTML
     const projectsHTML = projects && projects.length > 0 ? projects.slice(0, 4).map(item => `
         <div class="project-item">
             <h4>${item.title || 'Project'}</h4>
@@ -2238,7 +2140,6 @@ function generateResumeHTML(profile, education, experience, skills, projects) {
     `;
 }
 
-// 📄 Generate PDF - Public (No Auth)
 app.post('/api/resume/generate-pdf-public', async (req, res) => {
     try {
         console.log('📄 Generating PDF (Public)...');
@@ -2291,7 +2192,6 @@ app.post('/api/resume/generate-pdf-public', async (req, res) => {
     }
 });
 
-// 📄 Preview Resume (Admin Only)
 app.get('/api/resume/preview', requireAuth, async (req, res) => {
     try {
         console.log('👁️ Loading resume preview for user:', req.user?.email);
@@ -2325,7 +2225,6 @@ app.get('/api/resume/preview', requireAuth, async (req, res) => {
 
 console.log('✅ Client Portal API loading...');
 
-// ✅ Client Signup (No Auth Required)
 app.post('/api/client/signup', async (req, res) => {
     try {
         const { name, email, password, company, phone } = req.body;
@@ -2338,7 +2237,6 @@ app.post('/api/client/signup', async (req, res) => {
             });
         }
 
-        // Check if email exists
         const { data: existing, error: checkError } = await supabase
             .from('clients')
             .select('email')
@@ -2352,7 +2250,6 @@ app.post('/api/client/signup', async (req, res) => {
             });
         }
 
-        // Create client
         const { data: client, error } = await supabase
             .from('clients')
             .insert({
@@ -2361,7 +2258,8 @@ app.post('/api/client/signup', async (req, res) => {
                 password_hash: password,
                 company: company || '',
                 phone: phone || '',
-                status: 'pending'
+                status: 'pending',
+                created_at: new Date().toISOString()
             })
             .select()
             .single();
@@ -2376,7 +2274,19 @@ app.post('/api/client/signup', async (req, res) => {
 
         console.log('✅ Client created:', client.id);
 
-        // Send notification to admin
+        try {
+            await createAdminNotification({
+                type: 'client',
+                title: '👤 New Client Signup!',
+                message: `${name} (${email}) just signed up${company ? ' from ' + company : ''}`,
+                link: '/admin-clients.html',
+                icon: '👤',
+                color: '#2563eb'
+            });
+        } catch (notifError) {
+            console.warn('Notification error:', notifError.message);
+        }
+
         try {
             await sendAdminNotification({
                 subject: '📝 New Client Signup Request',
@@ -2386,7 +2296,7 @@ app.post('/api/client/signup', async (req, res) => {
                     <p><strong>Email:</strong> ${email}</p>
                     <p><strong>Company:</strong> ${company || 'N/A'}</p>
                     <p><strong>Phone:</strong> ${phone || 'N/A'}</p>
-                    <p><a href="https://your-site.com/admin-clients.html">Approve or Reject</a></p>
+                    <p><a href="/admin-clients.html">Approve or Reject</a></p>
                 `
             });
         } catch (emailError) {
@@ -2413,7 +2323,6 @@ app.post('/api/client/signup', async (req, res) => {
     }
 });
 
-// ✅ Client Login
 app.post('/api/client/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -2426,7 +2335,6 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Find client
         const { data: client, error } = await supabase
             .from('clients')
             .select('*')
@@ -2440,7 +2348,6 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Check status
         if (client.status === 'pending') {
             return res.status(403).json({
                 success: false,
@@ -2457,7 +2364,6 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Verify password
         if (client.password_hash !== password) {
             return res.status(401).json({
                 success: false,
@@ -2465,7 +2371,6 @@ app.post('/api/client/login', async (req, res) => {
             });
         }
 
-        // Generate token
         const token = Buffer.from(`${client.id}:${Date.now()}`).toString('base64');
 
         res.json({
@@ -2493,33 +2398,169 @@ app.post('/api/client/login', async (req, res) => {
     }
 });
 
-// ✅ Get client projects (for client dashboard)
+/* =========================================================
+   💬 CLIENT CHAT SYSTEM
+========================================================= */
+
+app.get('/api/client/chat/messages', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Authentication required' 
+            });
+        }
+
+        const token = authHeader.substring(7);
+        console.log('📩 Chat token received:', token.substring(0, 30) + '...');
+
+        const clientId = await extractClientIdFromToken(token);
+        
+        if (!clientId) {
+            console.error('❌ Could not extract client ID from token');
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid client ID in token' 
+            });
+        }
+
+        console.log('✅ Fetching messages for client:', clientId);
+
+        const { data, error } = await supabase
+            .from('client_chat_messages')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('❌ Database error:', error);
+            throw error;
+        }
+
+        console.log(`✅ Found ${data?.length || 0} messages`);
+        res.json({ success: true, data: data || [] });
+
+    } catch (error) {
+        console.error('❌ Chat error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Could not load messages' 
+        });
+    }
+});
+
+app.post('/api/client/chat/send', async (req, res) => {
+    try {
+        const { message } = req.body;
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Authentication required' 
+            });
+        }
+
+        const token = authHeader.substring(7);
+
+        if (!message) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Message is required' 
+            });
+        }
+
+        const clientId = await extractClientIdFromToken(token);
+        
+        if (!clientId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Could not identify client' 
+            });
+        }
+
+        const { data: client, error: clientError } = await supabase
+            .from('clients')
+            .select('name, email')
+            .eq('id', clientId)
+            .single();
+
+        if (clientError) {
+            console.error('Client error:', clientError);
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Client not found' 
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('client_chat_messages')
+            .insert({
+                client_id: clientId,
+                client_email: client.email,
+                client_name: client.name || 'Client',
+                message: message,
+                is_admin: false,
+                is_read: false,
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Send message error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not send message'
+            });
+        }
+
+        try {
+            await createAdminNotification({
+                type: 'chat',
+                title: '💬 New Chat Message!',
+                message: `${client.name || 'Client'} (${client.email}) sent: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`,
+                link: '/admin-chat.html',
+                icon: '💬',
+                color: '#7c3aed'
+            });
+        } catch (notifError) {
+            console.warn('Notification error:', notifError.message);
+        }
+
+        res.json({ success: true, data });
+
+    } catch (error) {
+        console.error('Send chat error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Could not send message' 
+        });
+    }
+});
+
+/* =========================================================
+   CLIENT PROJECTS API
+========================================================= */
+
 app.get('/api/client/projects', async (req, res) => {
     try {
-        const token = req.headers.authorization?.substring(7);
-        if (!token) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
                 message: 'Authentication required'
             });
         }
 
-        let clientId = req.query.clientId;
-            
+        const token = authHeader.substring(7);
+        const clientId = await extractClientIdFromToken(token);
+        
         if (!clientId) {
-            clientId = Buffer.from(token, 'base64').toString().split(':')[0];
-        }
-
-        const { data: client, error: clientError } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('id', clientId)
-            .single();
-
-        if (clientError || !client) {
-            return res.status(404).json({
+            return res.status(400).json({
                 success: false,
-                message: 'Client not found'
+                message: 'Invalid client ID'
             });
         }
 
@@ -2551,176 +2592,150 @@ app.get('/api/client/projects', async (req, res) => {
     }
 });
 
-// ✅ Client Files
-app.get('/api/client/files/:projectId', async (req, res) => {
+/* =========================================================
+   CLIENT ORDERS API
+========================================================= */
+
+app.get('/api/client/orders', async (req, res) => {
     try {
-        const { projectId } = req.params;
-        const token = req.headers.authorization?.substring(7);
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication required'
-            });
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, message: 'Authentication required' });
         }
 
-        const { data, error } = await supabase
-            .from('client_files')
-            .select('*')
-            .eq('project_id', projectId)
+        const token = authHeader.substring(7);
+        const clientId = await extractClientIdFromToken(token);
+        
+        if (!clientId) {
+            return res.status(400).json({ success: false, message: 'Invalid client ID' });
+        }
+
+        const { data: client, error: clientError } = await supabase
+            .from('clients')
+            .select('email')
+            .eq('id', clientId)
+            .single();
+
+        if (clientError || !client) {
+            return res.status(404).json({ success: false, message: 'Client not found' });
+        }
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                services_sale!inner(
+                    id,
+                    name,
+                    category,
+                    image_url
+                )
+            `)
+            .eq('customer_email', client.email)
             .order('created_at', { ascending: false });
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        res.json({
-            success: true,
-            data: data || []
-        });
+        const transformed = orders.map(order => ({
+            ...order,
+            service_name: order.services_sale?.name,
+            service_category: order.services_sale?.category,
+            service_image: order.services_sale?.image_url
+        }));
 
+        res.json({ success: true, data: transformed });
     } catch (error) {
-        console.error('Files error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not load files'
-        });
+        console.error('Orders error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ✅ Client Send Message
-app.post('/api/client/message', async (req, res) => {
+/* =========================================================
+   CLIENT ORDER TRACKING API
+========================================================= */
+
+app.get('/api/client/order-tracking/:orderId', async (req, res) => {
     try {
-        const { projectId, message } = req.body;
-        const token = req.headers.authorization?.substring(7);
+        const { orderId } = req.params;
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ success: false, message: 'Authentication required' });
+        }
+
+        const token = authHeader.substring(7);
+        const clientId = await extractClientIdFromToken(token);
         
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication required'
-            });
+        if (!clientId) {
+            return res.status(400).json({ success: false, message: 'Invalid client ID' });
         }
 
-        if (!message || !projectId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Project ID and message are required'
-            });
-        }
-
-        const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
-
-        const { data: project, error: projectError } = await supabase
-            .from('client_projects')
-            .select('id')
-            .eq('id', projectId)
-            .eq('client_id', clientId)
+        const { data: client, error: clientError } = await supabase
+            .from('clients')
+            .select('email')
+            .eq('id', clientId)
             .single();
 
-        if (projectError || !project) {
-            return res.status(403).json({
-                success: false,
-                message: 'You do not have access to this project'
-            });
+        if (clientError || !client) {
+            return res.status(404).json({ success: false, message: 'Client not found' });
         }
 
-        const { data, error } = await supabase
-            .from('client_messages')
-            .insert({
-                client_id: clientId,
-                project_id: projectId,
-                sender_type: 'client',
-                message: message,
-                is_read: false
-            })
-            .select()
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('*, services_sale(name)')
+            .eq('id', orderId)
+            .eq('customer_email', client.email)
             .single();
 
-        if (error) {
-            throw error;
-        }
-
-        try {
-            await sendAdminNotification({
-                subject: '💬 New Message from Client',
-                html: `
-                    <h2>New Message</h2>
-                    <p><strong>Client:</strong> ${clientId}</p>
-                    <p><strong>Project:</strong> ${projectId}</p>
-                    <p><strong>Message:</strong> ${message}</p>
-                `
-            });
-        } catch (e) {}
-
-        res.json({
-            success: true,
-            message: 'Message sent successfully',
-            data: data
-        });
-
-    } catch (error) {
-        console.error('Message error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not send message'
-        });
-    }
-});
-
-// ✅ Get messages for a project
-app.get('/api/client/messages/:projectId', async (req, res) => {
-    try {
-        const { projectId } = req.params;
-        const token = req.headers.authorization?.substring(7);
-        
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Authentication required'
+        if (orderError) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Order not found or access denied' 
             });
         }
 
-        const clientId = Buffer.from(token, 'base64').toString().split(':')[0];
-
-        const { data: project, error: projectError } = await supabase
-            .from('client_projects')
-            .select('id')
-            .eq('id', projectId)
-            .eq('client_id', clientId)
-            .single();
-
-        if (projectError || !project) {
-            return res.status(403).json({
-                success: false,
-                message: 'You do not have access to this project'
-            });
-        }
-
-        const { data, error } = await supabase
-            .from('client_messages')
+        const { data: tracking, error: trackingError } = await supabase
+            .from('order_tracking')
             .select('*')
-            .eq('project_id', projectId)
-            .order('created_at', { ascending: true });
+            .eq('order_id', orderId)
+            .order('timestamp', { ascending: false });
 
-        if (error) {
-            throw error;
+        if (trackingError) throw trackingError;
+
+        if (!tracking || tracking.length === 0) {
+            const defaultTracking = [
+                {
+                    status: order.order_status || 'pending',
+                    description: `Order ${order.order_status || 'pending'}`,
+                    timestamp: order.created_at,
+                    location: 'Online'
+                }
+            ];
+            return res.json({
+                success: true,
+                data: {
+                    service_name: order.services_sale?.name,
+                    tracking: defaultTracking
+                }
+            });
         }
 
         res.json({
             success: true,
-            data: data || []
+            data: {
+                service_name: order.services_sale?.name,
+                tracking: tracking
+            }
         });
-
     } catch (error) {
-        console.error('Messages error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not load messages'
-        });
+        console.error('Tracking error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ✅ Admin - Get all clients
+/* =========================================================
+   ADMIN - CLIENT MANAGEMENT API
+========================================================= */
+
 app.get('/api/admin/clients', requireAuth, async (req, res) => {
     try {
         const { status } = req.query;
@@ -2754,7 +2769,6 @@ app.get('/api/admin/clients', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Create client
 app.post('/api/admin/clients', requireAuth, async (req, res) => {
     try {
         const { name, email, password, company, phone } = req.body;
@@ -2811,7 +2825,6 @@ app.post('/api/admin/clients', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Approve client
 app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -2853,7 +2866,7 @@ app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
                     <h2>Congratulations ${client.name}!</h2>
                     <p>Your account has been approved by the admin.</p>
                     <p>You can now login to access your portal:</p>
-                    <p><a href="https://your-site.com/client-login.html">Login Here</a></p>
+                    <p><a href="/client-login.html">Login Here</a></p>
                     <p>Email: ${client.email}</p>
                 `
             });
@@ -2876,7 +2889,6 @@ app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Reject client
 app.put('/api/admin/clients/:id/reject', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -2940,7 +2952,6 @@ app.put('/api/admin/clients/:id/reject', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Delete client
 app.delete('/api/admin/clients/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -2968,11 +2979,9 @@ app.delete('/api/admin/clients/:id', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Add project to client
 app.post('/api/admin/client-project', requireAuth, async (req, res) => {
     try {
         const { clientId, projectName, projectType, description, status, startDate, endDate, budget } = req.body;
-        console.log('📁 Adding project for client:', clientId);
 
         if (!clientId || !projectName) {
             return res.status(400).json({
@@ -3017,7 +3026,6 @@ app.post('/api/admin/client-project', requireAuth, async (req, res) => {
             });
         }
 
-        console.log('✅ Project added:', data.id);
         res.status(201).json({
             success: true,
             message: 'Project added successfully',
@@ -3034,701 +3042,505 @@ app.post('/api/admin/client-project', requireAuth, async (req, res) => {
     }
 });
 
-console.log('✅ Client Portal API ready');
-
 /* =========================================================
-   📊 DISCIPLINE TRACKER - COMPLETE API
+   ADMIN - CHAT API
 ========================================================= */
 
-// ✅ Get Today's Progress
-app.get('/api/discipline/today', async (req, res) => {
-    try {
-        const token = req.headers.authorization?.substring(7);
-        let userId = null;
-        
-        if (token) {
-            const { data: { user } } = await supabase.auth.getUser(token);
-            userId = user?.id;
-        }
-
-        const today = new Date().toISOString().split('T')[0];
-        
-        let query = supabase
-            .from('discipline_tracker')
-            .select('*')
-            .eq('date', today);
-
-        if (userId) {
-            query = query.eq('user_id', userId);
-        } else {
-            query = query.order('created_at', { ascending: false }).limit(1);
-        }
-
-        const { data, error } = await query.single();
-
-        if (error && error.code !== 'PGRST116') {
-            throw error;
-        }
-
-        res.json({
-            success: true,
-            data: data || null,
-            message: data ? 'Today\'s progress' : 'No entry for today yet'
-        });
-
-    } catch (error) {
-        console.error('Discipline error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Save Daily Progress (with Day 1 reset)
-app.post('/api/discipline/save', requireAuth, async (req, res) => {
-    try {
-        const { walk_km, gym_minutes, study_minutes, tasks_completed, discipline_rating, image_url, video_url, notes } = req.body;
-        const userId = req.user.id;
-        const today = new Date().toISOString().split('T')[0];
-
-        // Get last entry to check streak
-        const { data: lastEntry, error: lastError } = await supabase
-            .from('discipline_tracker')
-            .select('day_number, date')
-            .eq('user_id', userId)
-            .order('date', { ascending: false })
-            .limit(1);
-
-        let dayNumber = 1;
-        if (lastEntry && lastEntry.length > 0) {
-            const lastDate = new Date(lastEntry[0].date);
-            const todayDate = new Date(today);
-            const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
-            
-            if (diffDays === 1) {
-                dayNumber = lastEntry[0].day_number + 1;
-            } else if (diffDays > 1) {
-                dayNumber = 1; // Auto reset to Day 1
-            } else {
-                dayNumber = lastEntry[0].day_number;
-            }
-        }
-
-        const { data, error } = await supabase
-            .from('discipline_tracker')
-            .upsert({
-                user_id: userId,
-                date: today,
-                day_number: dayNumber,
-                walk_km: walk_km || 0,
-                gym_minutes: gym_minutes || 0,
-                study_minutes: study_minutes || 0,
-                tasks_completed: tasks_completed || [],
-                discipline_rating: discipline_rating || 1,
-                image_url: image_url || '',
-                video_url: video_url || '',
-                notes: notes || '',
-                updated_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Save error:', error);
-            return res.status(500).json({ success: false, message: error.message });
-        }
-
-        res.json({
-            success: true,
-            message: `Day ${dayNumber} saved successfully!`,
-            data: data,
-            streak: dayNumber
-        });
-
-    } catch (error) {
-        console.error('Save discipline error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Get Public Stats
-app.get('/api/discipline/public-stats', async (req, res) => {
+app.get('/api/admin/chat/clients', requireAuth, async (req, res) => {
     try {
         const { data, error } = await supabase
-            .from('discipline_tracker')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(30);
+            .from('client_chat_messages')
+            .select('client_id, client_name, client_email, created_at, is_read')
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        const stats = {
-            total_days: data.length,
-            current_streak: 0,
-            best_streak: 0,
-            total_walk: 0,
-            total_gym: 0,
-            total_study: 0,
-            avg_rating: 0
-        };
-
-        let streak = 0;
-        let bestStreak = 0;
-        for (let i = 0; i < data.length; i++) {
-            if (data[i].day_number > 0) {
-                streak++;
-                if (streak > bestStreak) bestStreak = streak;
-            } else {
-                streak = 0;
+        const clients = {};
+        data.forEach(msg => {
+            const id = msg.client_id;
+            if (!clients[id]) {
+                clients[id] = {
+                    client_id: id,
+                    client_name: msg.client_name,
+                    client_email: msg.client_email,
+                    last_message: msg.created_at,
+                    unread_count: 0
+                };
             }
-        }
-
-        stats.current_streak = streak;
-        stats.best_streak = bestStreak;
-        stats.total_walk = data.reduce((sum, d) => sum + (d.walk_km || 0), 0);
-        stats.total_gym = data.reduce((sum, d) => sum + (d.gym_minutes || 0), 0);
-        stats.total_study = data.reduce((sum, d) => sum + (d.study_minutes || 0), 0);
-        stats.avg_rating = data.length > 0 ? 
-            data.reduce((sum, d) => sum + (d.discipline_rating || 0), 0) / data.length : 0;
-
-        res.json({
-            success: true,
-            stats: stats,
-            recent: data.slice(0, 7)
+            if (!msg.is_read) {
+                clients[id].unread_count++;
+            }
         });
 
+        res.json({ success: true, data: Object.values(clients) });
     } catch (error) {
-        console.error('Public stats error:', error);
+        console.error('Chat clients error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ✅ Get Motivation Quote
-app.get('/api/discipline/quote', async (req, res) => {
+app.get('/api/admin/chat/messages', requireAuth, async (req, res) => {
     try {
-        const { category } = req.query;
+        const { client_id } = req.query;
         
         let query = supabase
-            .from('motivation_quotes')
-            .select('*');
+            .from('client_chat_messages')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        if (category) {
-            query = query.eq('category', category);
+        if (client_id) {
+            query = query.eq('client_id', client_id);
         }
 
         const { data, error } = await query;
 
         if (error) throw error;
-
-        const randomQuote = data[Math.floor(Math.random() * data.length)];
-
-        res.json({
-            success: true,
-            data: randomQuote
-        });
-
-    } catch (error) {
-        console.error('Quote error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ============================================================
-// 📋 DISCIPLINE TASKS API
-// ============================================================
-
-// ✅ Get all tasks (with cache bypass)
-app.get('/api/discipline/tasks', requireAuth, async (req, res) => {
-    try {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        
-        const { data, error } = await supabase
-            .from('discipline_tasks')
-            .select('*')
-            .eq('user_id', req.user.id)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
         res.json({ success: true, data: data || [] });
     } catch (error) {
+        console.error('Admin chat error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ✅ Add task
-app.post('/api/discipline/tasks', requireAuth, async (req, res) => {
+app.post('/api/admin/chat/reply', requireAuth, async (req, res) => {
     try {
-        const { task_title, task_category, task_description, is_daily } = req.body;
-        
-        if (!task_title) {
-            return res.status(400).json({ success: false, message: 'Task title is required' });
+        const { client_id, message } = req.body;
+
+        if (!client_id || !message) {
+            return res.status(400).json({ success: false, message: 'Client ID and message are required' });
+        }
+
+        const { data: client, error: clientError } = await supabase
+            .from('clients')
+            .select('name, email')
+            .eq('id', client_id)
+            .single();
+
+        if (clientError) {
+            return res.status(404).json({ success: false, message: 'Client not found' });
         }
 
         const { data, error } = await supabase
-            .from('discipline_tasks')
+            .from('client_chat_messages')
             .insert({
-                user_id: req.user.id,
-                task_title,
-                task_category: task_category || 'other',
-                task_description: task_description || '',
-                is_daily: is_daily !== undefined ? is_daily : true,
-                is_completed: false
+                client_id: client_id,
+                client_email: client.email,
+                client_name: client.name || 'Client',
+                message: message,
+                is_admin: true,
+                is_read: true,
+                created_at: new Date().toISOString()
             })
             .select()
             .single();
 
-        if (error) throw error;
-        res.status(201).json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
+        if (error) {
+            console.error('Reply error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not send reply'
+            });
+        }
 
-// ✅ Update task
-app.put('/api/discipline/tasks/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { task_title, task_category, task_description, is_daily } = req.body;
+        try {
+            await supabase
+                .from('customer_notifications')
+                .insert({
+                    customer_email: client.email,
+                    customer_name: client.name || 'Client',
+                    title: '💬 Admin Reply',
+                    message: `Admin replied: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`,
+                    notification_type: 'chat_reply',
+                    is_read: false,
+                    created_at: new Date().toISOString()
+                });
+        } catch (notifError) {
+            console.warn('Client notification error:', notifError.message);
+        }
 
-        const { data, error } = await supabase
-            .from('discipline_tasks')
-            .update({
-                task_title,
-                task_category,
-                task_description,
-                is_daily,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .eq('user_id', req.user.id)
-            .select()
-            .single();
-
-        if (error) throw error;
         res.json({ success: true, data });
     } catch (error) {
+        console.error('Reply error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
-// ✅ Mark task as complete (with timestamp)
-app.put('/api/discipline/tasks/:id/complete', requireAuth, async (req, res) => {
+app.put('/api/admin/chat/mark-read/:client_id', requireAuth, async (req, res) => {
     try {
-        const { id } = req.params;
-        const now = new Date().toISOString();
-
-        const { data, error } = await supabase
-            .from('discipline_tasks')
-            .update({
-                is_completed: true,
-                completed_at: now,
-                updated_at: now
-            })
-            .eq('id', id)
-            .eq('user_id', req.user.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        
-        res.json({ 
-            success: true, 
-            data: data,
-            timestamp: Date.now()
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Delete task
-app.delete('/api/discipline/tasks/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
+        const { client_id } = req.params;
 
         const { error } = await supabase
-            .from('discipline_tasks')
-            .delete()
-            .eq('id', id)
-            .eq('user_id', req.user.id);
+            .from('client_chat_messages')
+            .update({ is_read: true })
+            .eq('client_id', client_id)
+            .eq('is_read', false);
 
         if (error) throw error;
-        res.json({ success: true, message: 'Task deleted' });
+        res.json({ success: true });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Get single task
-app.get('/api/discipline/tasks/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { data, error } = await supabase
-            .from('discipline_tasks')
-            .select('*')
-            .eq('id', id)
-            .eq('user_id', req.user.id)
-            .single();
-
-        if (error) throw error;
-        res.json({ success: true, data });
-    } catch (error) {
+        console.error('Mark read error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
 /* =========================================================
-   ANALYTICS API
+   📢 NOTIFICATIONS API
 ========================================================= */
 
-// Track page view
-app.post('/api/analytics/pageview', async (req, res) => {
+app.get('/api/notifications', async (req, res) => {
     try {
-        const { page, referrer, user_agent } = req.body;
-        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const email = req.query.email;
+        console.log('📩 Fetching notifications for:', email);
         
-        let country = 'Unknown';
-        try {
-            const geoResponse = await fetch(`http://ip-api.com/json/${ip}?fields=country`);
-            const geoData = await geoResponse.json();
-            country = geoData.country || 'Unknown';
-        } catch (e) {}
-
-        const { data, error } = await supabase
-            .from('analytics_pageviews')
-            .insert({
-                page: page || '/',
-                ip_address: ip,
-                country: country,
-                referrer: referrer || 'Direct',
-                user_agent: user_agent || 'Unknown',
-                viewed_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Analytics error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not track pageview'
+        if (!email) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Email is required' 
             });
         }
 
-        res.json({ success: true, data });
-    } catch (error) {
-        console.error('Analytics server error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
+        const { data, error } = await supabase
+            .from('customer_notifications')
+            .select('*')
+            .eq('customer_email', email)
+            .order('created_at', { ascending: false });
 
-// Track resume download
-app.post('/api/analytics/resume-download', async (req, res) => {
-    try {
-        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        if (error) {
+            console.error('❌ Database error:', error);
+            throw error;
+        }
+
+        console.log(`✅ Found ${data?.length || 0} notifications`);
+        res.json({ success: true, data: data || [] });
         
-        const { data, error } = await supabase
-            .from('analytics_resume_downloads')
-            .insert({
-                downloaded_at: new Date().toISOString(),
-                ip_address: ip
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Resume download tracking error:', error);
-            return res.status(500).json({ success: false, message: 'Could not track download' });
-        }
-
-        res.json({ success: true, data });
     } catch (error) {
-        console.error('Resume download error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// Track project click
-app.post('/api/analytics/project-click', async (req, res) => {
-    try {
-        const { project_id, project_title, link_type } = req.body;
-        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-
-        const { data, error } = await supabase
-            .from('analytics_project_clicks')
-            .insert({
-                project_id: project_id || null,
-                project_title: project_title || 'Unknown',
-                link_type: link_type || 'click',
-                ip_address: ip,
-                clicked_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Project click tracking error:', error);
-            return res.status(500).json({ success: false, message: 'Could not track click' });
-        }
-
-        res.json({ success: true, data });
-    } catch (error) {
-        console.error('Project click error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// Track blog view
-app.post('/api/analytics/blog-view', async (req, res) => {
-    try {
-        const { post_id, post_title } = req.body;
-        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-
-        const { data, error } = await supabase
-            .from('analytics_blog_views')
-            .insert({
-                post_id: post_id || null,
-                post_title: post_title || 'Unknown',
-                ip_address: ip,
-                viewed_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Blog view tracking error:', error);
-            return res.status(500).json({ success: false, message: 'Could not track view' });
-        }
-
-        res.json({ success: true, data });
-    } catch (error) {
-        console.error('Blog view error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// Track contact form submission
-app.post('/api/analytics/contact-submission', async (req, res) => {
-    try {
-        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        
-        const { data, error } = await supabase
-            .from('analytics_contact_submissions')
-            .insert({
-                submitted_at: new Date().toISOString(),
-                ip_address: ip
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Contact submission tracking error:', error);
-            return res.status(500).json({ success: false, message: 'Could not track submission' });
-        }
-
-        res.json({ success: true, data });
-    } catch (error) {
-        console.error('Contact submission error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// GET ANALYTICS DATA (Admin only)
-app.get('/api/admin/analytics', requireAuth, async (req, res) => {
-    try {
-        const { period = '30' } = req.query;
-        const days = parseInt(period) || 30;
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-
-        const { count: totalViews, error: viewsError } = await supabase
-            .from('analytics_pageviews')
-            .select('*', { count: 'exact', head: true })
-            .gte('viewed_at', startDate.toISOString());
-
-        if (viewsError) throw viewsError;
-
-        const { data: uniqueIPs, error: ipError } = await supabase
-            .from('analytics_pageviews')
-            .select('ip_address')
-            .gte('viewed_at', startDate.toISOString());
-
-        if (ipError) throw ipError;
-
-        const uniqueIPCount = new Set(uniqueIPs?.map(item => item.ip_address)).size;
-
-        const { data: dailyViews, error: dailyError } = await supabase
-            .from('analytics_pageviews')
-            .select('viewed_at')
-            .gte('viewed_at', startDate.toISOString())
-            .order('viewed_at', { ascending: true });
-
-        if (dailyError) throw dailyError;
-
-        const dailyData = {};
-        dailyViews?.forEach(view => {
-            const date = new Date(view.viewed_at).toLocaleDateString();
-            dailyData[date] = (dailyData[date] || 0) + 1;
+        console.error('❌ Notifications error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Could not load notifications' 
         });
+    }
+});
 
-        const dailyChartData = Object.keys(dailyData).map(date => ({
-            date,
-            views: dailyData[date]
-        }));
+app.put('/api/notifications/:id/read', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log('📩 Marking notification as read:', id);
 
-        // Get top pages
-        let topPages = [];
-        try {
-            const { data } = await supabase
-                .from('analytics_pageviews')
-                .select('page')
-                .gte('viewed_at', startDate.toISOString());
+        const { data, error } = await supabase
+            .from('customer_notifications')
+            .update({
+                status: 'read',
+                read_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
 
-            if (data) {
-                const pageCounts = {};
-                data.forEach(item => {
-                    const page = item.page || '/';
-                    pageCounts[page] = (pageCounts[page] || 0) + 1;
-                });
-                topPages = Object.keys(pageCounts).map(page => ({
-                    page,
-                    count: pageCounts[page]
-                })).sort((a, b) => b.count - a.count).slice(0, 10);
+        if (error) {
+            console.error('❌ Database error:', error);
+            throw error;
+        }
+
+        console.log('✅ Notification marked as read');
+        res.json({ success: true, data });
+        
+    } catch (error) {
+        console.error('❌ Mark read error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Could not mark as read' 
+        });
+    }
+});
+
+app.post('/api/notifications', async (req, res) => {
+    try {
+        const { customer_email, customer_name, message, notification_type, title, action_url } = req.body;
+
+        if (!customer_email || !message) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and message are required'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('customer_notifications')
+            .insert({
+                customer_email,
+                customer_name: customer_name || 'Client',
+                message,
+                notification_type: notification_type || 'general',
+                title: title || 'Notification',
+                action_url: action_url || null,
+                status: 'unread',
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('❌ Database error:', error);
+            throw error;
+        }
+
+        console.log('✅ Notification created for:', customer_email);
+        res.status(201).json({ success: true, data });
+        
+    } catch (error) {
+        console.error('❌ Create notification error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Could not create notification' 
+        });
+    }
+});
+
+
+/* =========================================================
+   📢 ADMIN NOTIFICATIONS API
+========================================================= */
+
+// ✅ Admin - Send notification to clients
+app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
+    try {
+        const { title, message, notification_type, target_type, target_clients } = req.body;
+
+        if (!title || !message) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title and message are required'
+            });
+        }
+
+        // ✅ Create notification record
+        const { data: notification, error } = await supabase
+            .from('admin_notifications')
+            .insert({
+                title,
+                message,
+                notification_type: notification_type || 'announcement',
+                target_type: target_type || 'all',
+                target_clients: target_clients || [],
+                created_by: req.user?.id || 'admin',
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Create notification error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not create notification',
+                error: error.message
+            });
+        }
+
+        // ✅ Get target clients
+        let clients = [];
+        if (target_type === 'all') {
+            const { data: allClients, error: allError } = await supabase
+                .from('clients')
+                .select('id, name, email')
+                .eq('status', 'approved');
+            
+            if (allError) {
+                console.error('Get clients error:', allError);
+            } else {
+                clients = allClients || [];
             }
-        } catch (e) {}
-
-        // Get countries
-        let countries = [];
-        try {
-            const { data } = await supabase
-                .from('analytics_pageviews')
-                .select('country')
-                .gte('viewed_at', startDate.toISOString())
-                .not('country', 'is', null);
-
-            if (data) {
-                const countryCounts = {};
-                data.forEach(item => {
-                    const country = item.country || 'Unknown';
-                    countryCounts[country] = (countryCounts[country] || 0) + 1;
-                });
-                countries = Object.keys(countryCounts).map(country => ({
-                    country,
-                    count: countryCounts[country]
-                })).sort((a, b) => b.count - a.count).slice(0, 10);
+        } else if (target_type === 'specific' && target_clients && target_clients.length > 0) {
+            const { data: specificClients, error: specificError } = await supabase
+                .from('clients')
+                .select('id, name, email')
+                .in('id', target_clients)
+                .eq('status', 'approved');
+            
+            if (specificError) {
+                console.error('Get specific clients error:', specificError);
+            } else {
+                clients = specificClients || [];
             }
-        } catch (e) {}
+        }
 
-        // Get referrers
-        let referrers = [];
-        try {
-            const { data } = await supabase
-                .from('analytics_pageviews')
-                .select('referrer')
-                .gte('viewed_at', startDate.toISOString());
-
-            if (data) {
-                const referrerCounts = {};
-                data.forEach(item => {
-                    const referrer = item.referrer || 'Direct';
-                    referrerCounts[referrer] = (referrerCounts[referrer] || 0) + 1;
+        // ✅ Create notifications for each client
+        let sentCount = 0;
+        for (const client of clients) {
+            const { error: notifError } = await supabase
+                .from('customer_notifications')
+                .insert({
+                    order_id: null,
+                    customer_email: client.email,
+                    customer_name: client.name,
+                    message: message,
+                    notification_type: notification_type || 'announcement',
+                    title: title,
+                    action_url: '/client-notifications.html',
+                    is_broadcast: true,
+                    status: 'unread',
+                    created_at: new Date().toISOString()
                 });
-                referrers = Object.keys(referrerCounts).map(referrer => ({
-                    referrer,
-                    count: referrerCounts[referrer]
-                })).sort((a, b) => b.count - a.count).slice(0, 10);
+
+            if (!notifError) {
+                sentCount++;
             }
-        } catch (e) {}
+        }
 
-        const { count: resumeDownloads, error: resumeError } = await supabase
-            .from('analytics_resume_downloads')
-            .select('*', { count: 'exact', head: true })
-            .gte('downloaded_at', startDate.toISOString());
-
-        if (resumeError) throw resumeError;
-
-        // Get project clicks
-        let projectClicks = [];
-        try {
-            const { data } = await supabase
-                .from('analytics_project_clicks')
-                .select('project_title')
-                .gte('clicked_at', startDate.toISOString());
-
-            if (data) {
-                const projectCounts = {};
-                data.forEach(item => {
-                    const title = item.project_title || 'Unknown';
-                    projectCounts[title] = (projectCounts[title] || 0) + 1;
-                });
-                projectClicks = Object.keys(projectCounts).map(title => ({
-                    project_title: title,
-                    count: projectCounts[title]
-                })).sort((a, b) => b.count - a.count).slice(0, 10);
-            }
-        } catch (e) {}
-
-        // Get blog views
-        let blogViews = [];
-        try {
-            const { data } = await supabase
-                .from('analytics_blog_views')
-                .select('post_title')
-                .gte('viewed_at', startDate.toISOString());
-
-            if (data) {
-                const blogCounts = {};
-                data.forEach(item => {
-                    const title = item.post_title || 'Unknown';
-                    blogCounts[title] = (blogCounts[title] || 0) + 1;
-                });
-                blogViews = Object.keys(blogCounts).map(title => ({
-                    post_title: title,
-                    count: blogCounts[title]
-                })).sort((a, b) => b.count - a.count).slice(0, 10);
-            }
-        } catch (e) {}
-
-        const { count: contactSubmissions, error: contactError } = await supabase
-            .from('analytics_contact_submissions')
-            .select('*', { count: 'exact', head: true })
-            .gte('submitted_at', startDate.toISOString());
-
-        if (contactError) throw contactError;
+        // ✅ Update sent_at
+        await supabase
+            .from('admin_notifications')
+            .update({ 
+                sent_at: new Date().toISOString(),
+                sent_count: sentCount 
+            })
+            .eq('id', notification.id);
 
         res.json({
             success: true,
+            message: `Notification sent successfully!`,
             data: {
-                totalViews: totalViews || 0,
-                uniqueVisitors: uniqueIPCount || 0,
-                resumeDownloads: resumeDownloads || 0,
-                contactSubmissions: contactSubmissions || 0,
-                dailyViews: dailyChartData || [],
-                topPages: topPages || [],
-                countries: countries || [],
-                referrers: referrers || [],
-                projectClicks: projectClicks || [],
-                blogViews: blogViews || [],
-                period: days
+                notification: notification,
+                sent_count: sentCount,
+                total_clients: clients.length
             }
         });
 
     } catch (error) {
-        console.error('Analytics data error:', error);
+        console.error('Send notification error:', error);
         res.status(500).json({
             success: false,
-            message: 'Could not load analytics data',
+            message: 'Could not send notification',
             error: error.message
         });
     }
 });
 
+// ✅ Admin - Get all notifications (with pagination)
+app.get('/api/admin/notifications', requireAuth, async (req, res) => {
+    try {
+        const { limit = 50, offset = 0 } = req.query;
+        
+        const { data, error } = await supabase
+            .from('admin_notifications')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+        if (error) {
+            console.error('Get notifications error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load notifications',
+                error: error.message
+            });
+        }
+
+        // Get total count
+        const { count, error: countError } = await supabase
+            .from('admin_notifications')
+            .select('*', { count: 'exact', head: true });
+
+        if (countError) {
+            console.error('Count error:', countError);
+        }
+
+        res.json({
+            success: true,
+            data: data || [],
+            total: count || 0
+        });
+
+    } catch (error) {
+        console.error('Get notifications error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load notifications',
+            error: error.message
+        });
+    }
+});
+
+// ✅ Admin - Get single notification
+app.get('/api/admin/notifications/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('admin_notifications')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Get notification error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load notification',
+                error: error.message
+            });
+        }
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Notification not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: data
+        });
+
+    } catch (error) {
+        console.error('Get notification error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not load notification',
+            error: error.message
+        });
+    }
+});
+
+// ✅ Admin - Delete notification
+app.delete('/api/admin/notifications/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('admin_notifications')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Delete notification error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not delete notification',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Notification deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Delete notification error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Could not delete notification',
+            error: error.message
+        });
+    }
+});
 /* =========================================================
-   💼 SERVICES SALE API
+   SERVICES SALE API
 ========================================================= */
 
-// ✅ Get all services (public)
 app.get('/api/services-sale', async (req, res) => {
     try {
         const { category, featured } = req.query;
@@ -3750,7 +3562,6 @@ app.get('/api/services-sale', async (req, res) => {
     }
 });
 
-// ✅ Get single service (public)
 app.get('/api/services-sale/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -3773,110 +3584,34 @@ app.get('/api/services-sale/:slug', async (req, res) => {
     }
 });
 
-// ✅ Admin - Create service
-app.post('/api/admin/services-sale', requireAuth, async (req, res) => {
-    try {
-        const { name, slug, description, price, sale_price, category, image_url, gallery_images, demo_url, features, is_available, is_featured, sort_order } = req.body;
+/* =========================================================
+   ORDER API
+========================================================= */
 
-        if (!name || !slug || !price) {
-            return res.status(400).json({ success: false, message: 'Name, slug and price are required' });
-        }
-
-        const { data, error } = await supabase
-            .from('services_sale')
-            .insert({
-                name, slug, description, price, sale_price,
-                category: category || 'website',
-                image_url, gallery_images: gallery_images || [],
-                demo_url, features: features || {},
-                is_available: is_available !== undefined ? is_available : true,
-                is_featured: is_featured || false,
-                sort_order: sort_order || 0
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.status(201).json({ success: true, data });
-    } catch (error) {
-        console.error('Create error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-// ✅ Get single service by ID (Admin)
-app.get('/api/services-sale/id/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { data, error } = await supabase
-            .from('services_sale')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) throw error;
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-// ✅ Admin - Update service
-app.put('/api/admin/services-sale/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { name, slug, description, price, sale_price, category, image_url, gallery_images, demo_url, features, is_available, is_featured, sort_order } = req.body;
-
-        const { data, error } = await supabase
-            .from('services_sale')
-            .update({
-                name, slug, description, price, sale_price,
-                category, image_url, gallery_images, demo_url,
-                features, is_available, is_featured, sort_order,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Admin - Delete service
-app.delete('/api/admin/services-sale/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { error } = await supabase
-            .from('services_sale')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw error;
-        res.json({ success: true, message: 'Service deleted' });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Create Order
 app.post('/api/order', async (req, res) => {
     try {
-        const { service_id, customer_name, customer_email, customer_phone, notes } = req.body;
+        const { service_id, customer_name, customer_email, customer_phone, notes, payment_method } = req.body;
 
         if (!service_id || !customer_name || !customer_email) {
-            return res.status(400).json({ success: false, message: 'Service ID, name and email are required' });
+            return res.status(400).json({
+                success: false,
+                message: 'Service ID, name and email are required'
+            });
         }
 
         const { data: service, error: serviceError } = await supabase
             .from('services_sale')
-            .select('price, name')
+            .select('price, name, category')
             .eq('id', service_id)
             .single();
 
-        if (serviceError) throw serviceError;
+        if (serviceError) {
+            console.error('Service error:', serviceError);
+            return res.status(404).json({
+                success: false,
+                message: 'Service not found'
+            });
+        }
 
         const { data, error } = await supabase
             .from('orders')
@@ -3886,38 +3621,53 @@ app.post('/api/order', async (req, res) => {
                 customer_email,
                 customer_phone: customer_phone || '',
                 amount: service.price,
+                payment_method: payment_method || 'pending',
                 notes: notes || '',
                 payment_status: 'pending',
-                order_status: 'processing'
+                order_status: 'processing',
+                created_at: new Date().toISOString()
             })
             .select()
             .single();
 
-        if (error) throw error;
-
-        // Send admin notification
-        try {
-            await sendAdminNotification({
-                subject: '🛒 New Order Received!',
-                html: `
-                    <h2>New Order</h2>
-                    <p><strong>Service:</strong> ${service.name}</p>
-                    <p><strong>Customer:</strong> ${customer_name}</p>
-                    <p><strong>Email:</strong> ${customer_email}</p>
-                    <p><strong>Phone:</strong> ${customer_phone || 'N/A'}</p>
-                    <p><strong>Amount:</strong> $${service.price}</p>
-                `
+        if (error) {
+            console.error('Order creation error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not create order',
+                error: error.message
             });
-        } catch (e) {}
+        }
 
-        res.status(201).json({ success: true, message: 'Order placed successfully!', data });
+        try {
+            await createAdminNotification({
+                type: 'order',
+                title: '🛒 New Order Received!',
+                message: `${customer_name} ordered "${service.name}" worth $${service.price}`,
+                link: '/admin-orders.html',
+                icon: '🛒',
+                color: '#10b981'
+            });
+        } catch (notifError) {
+            console.warn('Notification error:', notifError.message);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Order placed successfully!',
+            data: data
+        });
+
     } catch (error) {
         console.error('Order error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+            success: false,
+            message: 'Could not place order',
+            error: error.message
+        });
     }
 });
 
-// ✅ Admin - Get all orders
 app.get('/api/admin/orders', requireAuth, async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -3932,206 +3682,11 @@ app.get('/api/admin/orders', requireAuth, async (req, res) => {
     }
 });
 
-/* =========================================================
-   💬 LIVE CHAT SYSTEM - COMPLETE
-========================================================= */
-
-/* =========================================================
-   💬 CHAT SYSTEM - WITH SESSION SUPPORT
-========================================================= */
-
-// ✅ Generate Session ID (Simple)
-function generateSessionId() {
-    return 'guest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-}
-
-// ✅ Get ALL messages (Public)
-app.get('/api/chat/messages', async (req, res) => {
-    try {
-        const sessionId = req.query.session || req.headers['x-session-id'] || 'all';
-        
-        let query = supabase
-            .from('chat_messages')
-            .select('*')
-            .order('created_at', { ascending: true });
-
-        // Filter by session if provided
-        if (sessionId !== 'all') {
-            query = query.eq('session_id', sessionId);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        res.json({ success: true, data: data || [] });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Send message (Public)
-app.post('/api/chat/send', async (req, res) => {
-    try {
-        const { sender_name, sender_email, message, session_id } = req.body;
-
-        if (!sender_name || !message) {
-            return res.status(400).json({ success: false, message: 'Name and message are required' });
-        }
-
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .insert({
-                sender_name: sender_name,
-                sender_email: sender_email || '',
-                message: message,
-                session_id: session_id || generateSessionId(),
-                is_read: false,
-                is_admin: false
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        // ✅ Admin Notification
-        try {
-            await sendAdminNotification({
-                subject: `💬 New Chat from ${sender_name}`,
-                html: `
-                    <h2>New Chat Message</h2>
-                    <p><strong>From:</strong> ${sender_name}</p>
-                    <p><strong>Email:</strong> ${sender_email || 'N/A'}</p>
-                    <p><strong>Session:</strong> ${session_id || data.session_id}</p>
-                    <p><strong>Message:</strong> ${message}</p>
-                    <p><a href="/admin-chat.html?session=${data.session_id}">Reply Now</a></p>
-                `
-            });
-        } catch (e) {}
-
-        res.status(201).json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Admin - Get sessions with messages
-app.get('/api/admin/chat-sessions', requireAuth, async (req, res) => {
-    try {
-        // Get all unique sessions
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .select('session_id, sender_name, sender_email, created_at')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Group by session_id
-        const sessions = {};
-        data.forEach(msg => {
-            const sessionId = msg.session_id || 'unknown';
-            if (!sessions[sessionId]) {
-                sessions[sessionId] = {
-                    session_id: sessionId,
-                    sender_name: msg.sender_name || 'Guest',
-                    sender_email: msg.sender_email || '',
-                    last_message: msg.created_at,
-                    message_count: 0,
-                    unread_count: 0
-                };
-            }
-            sessions[sessionId].message_count++;
-            // Check if this message is unread
-            if (!msg.is_read && !msg.is_admin) {
-                sessions[sessionId].unread_count++;
-            }
-        });
-
-        const result = Object.values(sessions);
-        res.json({ success: true, data: result });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Admin - Get messages for specific session
-app.get('/api/admin/chat-session/:sessionId', requireAuth, async (req, res) => {
-    try {
-        const { sessionId } = req.params;
-
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('session_id', sessionId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        res.json({ success: true, data: data || [] });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Admin - Mark all messages as read for session
-app.put('/api/admin/chat-mark-read/:sessionId', requireAuth, async (req, res) => {
-    try {
-        const { sessionId } = req.params;
-
-        const { error } = await supabase
-            .from('chat_messages')
-            .update({ is_read: true })
-            .eq('session_id', sessionId)
-            .eq('is_read', false);
-
-        if (error) throw error;
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Admin - Reply to session
-app.post('/api/admin/chat-reply', requireAuth, async (req, res) => {
-    try {
-        const { reply, session_id } = req.body;
-
-        if (!reply || !session_id) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Reply and session_id are required' 
-            });
-        }
-
-        const adminName = req.user?.email?.split('@')[0] || 'Admin';
-
-        const { data, error } = await supabase
-            .from('chat_messages')
-            .insert({
-                sender_name: adminName,
-                sender_email: req.user?.email || 'admin@portfolio.com',
-                message: reply,
-                session_id: session_id,
-                is_read: true,
-                is_admin: true
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Admin - Update order status
-// ✅ Admin - Update order with Notification
 app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { payment_status, order_status } = req.body;
 
-        // Get order details
         const { data: order, error: fetchError } = await supabase
             .from('orders')
             .select('*, services_sale(name)')
@@ -4145,7 +3700,6 @@ app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
             });
         }
 
-        // Update order status
         const { data, error } = await supabase
             .from('orders')
             .update({
@@ -4166,7 +3720,6 @@ app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
             });
         }
 
-        // ✅ Create notification for customer
         try {
             const statusEmoji = {
                 'pending': '⏳',
@@ -4184,21 +3737,20 @@ app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
 
             const message = `${statusEmoji[order_status] || '📦'} Order #${order.id.substring(0, 8)}: ${statusMessages[order_status] || 'Status updated'}`;
 
-            await fetch(`http://localhost:${PORT}/api/admin/notifications`, {
+            await fetch(`http://localhost:${PORT}/api/notifications`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': req.headers.authorization
                 },
                 body: JSON.stringify({
-                    order_id: order.id,
                     customer_email: order.customer_email,
                     customer_name: order.customer_name,
                     message: message,
-                    type: 'order_update'
+                    title: '📦 Order Update',
+                    notification_type: 'order_update'
                 })
             });
-            console.log('✅ Notification created for:', order.customer_email);
         } catch (notifError) {
             console.error('❌ Notification error:', notifError.message);
         }
@@ -4219,7 +3771,6 @@ app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Delete order
 app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -4254,240 +3805,47 @@ app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
 });
 
 /* =========================================================
-   📢 CUSTOMER NOTIFICATIONS API (Email Alternative)
+   PAYMENT API
 ========================================================= */
 
-// ✅ Add notification (when order status changes)
-app.post('/api/admin/notifications', requireAuth, async (req, res) => {
+app.post('/api/payment/initiate', async (req, res) => {
     try {
-        const { order_id, customer_email, customer_name, message, type } = req.body;
+        const { order_id, customer_name, customer_email, amount } = req.body;
+        
+        console.log('💰 Payment Request:', { order_id, customer_name, customer_email, amount });
 
-        const { data, error } = await supabase
-            .from('customer_notifications')
-            .insert({
-                order_id,
-                customer_email,
-                customer_name,
-                message,
-                type: type || 'order_update',
-                status: 'unread'
-            })
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Get customer notifications
-app.get('/api/notifications', async (req, res) => {
-    try {
-        const email = req.query.email;
-        if (!email) {
-            return res.status(400).json({ success: false, message: 'Email is required' });
+        if (!order_id || !customer_name || !customer_email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields'
+            });
         }
 
-        const { data, error } = await supabase
-            .from('customer_notifications')
-            .select('*, orders(service_id, amount, services_sale(name))')
-            .eq('customer_email', email)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        res.json({ success: true, data: data || [] });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Mark notification as read
-app.put('/api/notifications/:id/read', async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { data, error } = await supabase
-            .from('customer_notifications')
+        await supabase
+            .from('orders')
             .update({
-                status: 'read',
-                read_at: new Date().toISOString()
+                payment_status: 'completed',
+                order_status: 'processing'
             })
-            .eq('id', id)
-            .select()
-            .single();
+            .eq('id', order_id);
 
-        if (error) throw error;
-        res.json({ success: true, data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Client - Get all orders with service details (FIXED)
-app.get('/api/client/orders', async (req, res) => {
-    try {
-        const token = req.headers.authorization?.substring(7);
-        if (!token) {
-            return res.status(401).json({ success: false, message: 'Authentication required' });
-        }
-
-        // ✅ Get client email from token
-        let clientEmail = null;
-        try {
-            // Decode token to get client ID
-            const decoded = atob(token);
-            const clientId = decoded.split(':')[0];
-            
-            // Get client data
-            const { data: client, error: clientError } = await supabase
-                .from('clients')
-                .select('email')
-                .eq('id', clientId)
-                .single();
-            
-            if (!clientError && client) {
-                clientEmail = client.email;
-            }
-        } catch (e) {
-            console.warn('Could not decode token:', e.message);
-        }
-
-        // If we couldn't get email from token, try using header
-        if (!clientEmail) {
-            // You can also pass email in header or use a different method
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Could not identify client' 
-            });
-        }
-
-        const { data: orders, error } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                services_sale!inner(
-                    id,
-                    name,
-                    category,
-                    image_url
-                )
-            `)
-            .eq('customer_email', clientEmail)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Transform data
-        const transformed = orders.map(order => ({
-            ...order,
-            service_name: order.services_sale?.name,
-            service_category: order.services_sale?.category,
-            service_image: order.services_sale?.image_url
-        }));
-
-        res.json({ success: true, data: transformed });
-    } catch (error) {
-        console.error('Orders error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// ✅ Client - Get order tracking (FIXED)
-app.get('/api/client/order-tracking/:orderId', async (req, res) => {
-    try {
-        const { orderId } = req.params;
-        const token = req.headers.authorization?.substring(7);
-        if (!token) {
-            return res.status(401).json({ success: false, message: 'Authentication required' });
-        }
-
-        // First verify the order belongs to this client
-        let clientEmail = null;
-        try {
-            const decoded = atob(token);
-            const clientId = decoded.split(':')[0];
-            
-            const { data: client, error: clientError } = await supabase
-                .from('clients')
-                .select('email')
-                .eq('id', clientId)
-                .single();
-            
-            if (!clientError && client) {
-                clientEmail = client.email;
-            }
-        } catch (e) {
-            console.warn('Could not decode token:', e.message);
-        }
-
-        if (!clientEmail) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Could not identify client' 
-            });
-        }
-
-        // Get order with service info - verify ownership
-        const { data: order, error: orderError } = await supabase
-            .from('orders')
-            .select('*, services_sale(name)')
-            .eq('id', orderId)
-            .eq('customer_email', clientEmail)
-            .single();
-
-        if (orderError) {
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Order not found or access denied' 
-            });
-        }
-
-        // Get tracking history
-        const { data: tracking, error: trackingError } = await supabase
-            .from('order_tracking')
-            .select('*')
-            .eq('order_id', orderId)
-            .order('timestamp', { ascending: false });
-
-        if (trackingError) throw trackingError;
-
-        // If no tracking, create default
-        if (!tracking || tracking.length === 0) {
-            const defaultTracking = [
-                {
-                    status: order.order_status || 'pending',
-                    description: `Order ${order.order_status || 'pending'}`,
-                    timestamp: order.created_at,
-                    location: 'Online'
-                }
-            ];
-            return res.json({
-                success: true,
-                data: {
-                    service_name: order.services_sale?.name,
-                    tracking: defaultTracking
-                }
-            });
-        }
-
-        res.json({
+        return res.json({
             success: true,
-            data: {
-                service_name: order.services_sale?.name,
-                tracking: tracking
-            }
+            redirect_url: `${process.env.BASE_URL || 'http://localhost:3000'}/payment-success.html?order=${order_id}&test=true`
         });
+
     } catch (error) {
-        console.error('Tracking error:', error);
-        res.status(500).json({ success: false, message: error.message });
+        console.error('❌ Payment error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Payment initiation failed'
+        });
     }
 });
+
 /* =========================================================
    FRONTEND FALLBACK
 ========================================================= */
-
 
 app.get('/service/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'service.html'));
@@ -4509,10 +3867,8 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 My Resume Portfolio running at http://localhost:${PORT}`);
-    console.log('📊 Analytics endpoints enabled');
-    console.log('📄 PDF Resume Generator enabled');
     console.log('👥 Client Portal API ready');
-    console.log('📊 Discipline Tracker API ready');
-    console.log('💼 Services Sale API ready');
+    console.log('💬 Chat System ready');
+    console.log('📢 Notifications API ready');
     console.log('✅ All systems ready!');
 });

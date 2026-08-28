@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Notifications | Client Portal</title>
+    <title>Notifications | Client Portal</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -18,8 +18,15 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .navbar h1 { font-size: 20px; }
+        .navbar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
         .logout-btn {
             background: rgba(255,255,255,0.2);
             border: none;
@@ -28,6 +35,7 @@
             border-radius: 6px;
             cursor: pointer;
         }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
         .container {
             max-width: 800px;
             margin: 30px auto;
@@ -36,10 +44,14 @@
         .card {
             background: white;
             border-radius: 12px;
-            padding: 20px;
+            padding: 20px 25px;
             border: 1px solid #e5e7eb;
             margin-bottom: 15px;
             transition: all 0.3s;
+            cursor: pointer;
+        }
+        .card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         }
         .card.unread {
             border-left: 4px solid #005f5f;
@@ -49,15 +61,36 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
+        .card .header .type {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .type.announcement { background: #dbeafe; color: #1e40af; }
+        .type.offer { background: #dcfce7; color: #166534; }
+        .type.update { background: #fef3c7; color: #92400e; }
+        .type.promotion { background: #fce4ec; color: #c62828; }
+        .type.order_update { background: #e0e7ff; color: #3730a3; }
+        .type.chat_reply { background: #ede9fe; color: #5b21b6; }
         .card .header .time {
             font-size: 12px;
             color: #6b7280;
         }
-        .card .message {
+        .card .title-text {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .card .message-text {
             font-size: 15px;
             line-height: 1.6;
+            color: #4b5563;
         }
         .card .badge {
             display: inline-block;
@@ -81,96 +114,207 @@
             text-decoration: none;
         }
         .back-link:hover { text-decoration: underline; }
-        .notification-count {
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            padding: 2px 8px;
-            font-size: 12px;
-            margin-left: 5px;
+
+        .detail-view { display: none; }
+        .detail-view .detail-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
         }
+        .detail-view .detail-card .detail-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #005f5f;
+            margin-bottom: 8px;
+        }
+        .detail-view .detail-card .detail-meta {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .detail-view .detail-card .detail-message {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #1f2937;
+            white-space: pre-wrap;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .detail-view .detail-card .detail-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .detail-view .detail-card .detail-actions .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary { background: #005f5f; color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: #e5e7eb; color: #1f2937; }
+        .btn-secondary:hover { background: #d1d5db; }
+
+        .back-to-list {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #005f5f;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .back-to-list:hover { text-decoration: underline; }
+
+        .notification-count {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
         @media (max-width: 600px) {
             .navbar { padding: 15px; }
             .navbar h1 { font-size: 17px; }
+            .detail-view .detail-card { padding: 20px; }
+            .detail-view .detail-card .detail-title { font-size: 20px; }
         }
     </style>
 </head>
 <body>
 <nav class="navbar">
-    <h1>📢 My Notifications</h1>
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <h1>📢 Notifications</h1>
+    <div class="user-info">
+        <span class="notification-count" id="notifCount"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
 </nav>
 
 <div class="container">
-    <div id="notificationsContainer">
-        <div class="empty">
-            <div class="icon">🔔</div>
-            <p>Loading notifications...</p>
+    <!-- List View -->
+    <div id="listView">
+        <div id="notificationsContainer">
+            <div class="empty">
+                <div class="icon">🔔</div>
+                <p>Loading notifications...</p>
+            </div>
+        </div>
+        <a href="/client-dashboard.html" class="back-link">← Back to Dashboard</a>
+    </div>
+
+    <!-- Detail View -->
+    <div id="detailView" class="detail-view">
+        <span class="back-to-list" onclick="showListView()">← Back to Notifications</span>
+        <div class="detail-card">
+            <div class="detail-title" id="detailTitle">Notification Title</div>
+            <div class="detail-meta">
+                <span id="detailType">📌 Announcement</span>
+                <span id="detailTime">📅 2024-01-15 10:30 AM</span>
+            </div>
+            <div class="detail-message" id="detailMessage">Loading message...</div>
+            <div class="detail-actions" id="detailActions">
+                <a href="#" class="btn btn-primary" id="detailActionBtn">🔗 View Details</a>
+            </div>
         </div>
     </div>
-    <a href="/client-dashboard.html" class="back-link">← Back to Dashboard</a>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// ============================================================
+// ✅ DATA
+// ============================================================
 
-let token = null;
-let clientData = null;
+const token = localStorage.getItem('clientToken');
+const clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
 
-async function checkAuth() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) {
-        window.location.href = '/client-login.html';
-        return null;
-    }
-    token = session.access_token;
-    clientData = JSON.parse(localStorage.getItem('clientData') || '{}');
-    return session;
+if (!token) {
+    window.location.href = '/client-login.html';
 }
+
+let allNotifications = [];
+
+// ============================================================
+// ✅ LOAD NOTIFICATIONS
+// ============================================================
 
 async function loadNotifications() {
-    const session = await checkAuth();
-    if (!session) return;
-
-    const email = clientData.email;
-    if (!email) {
-        document.getElementById('notificationsContainer').innerHTML = `
-            <div class="empty">
-                <div class="icon">⚠️</div>
-                <p>Please login again.</p>
-            </div>
-        `;
-        return;
-    }
-
+    const container = document.getElementById('notificationsContainer');
+    
     try {
+        const email = clientData.email;
+        if (!email) {
+            throw new Error('Email not found. Please login again.');
+        }
+
+        console.log('📩 Loading notifications for:', email);
+        console.log('🔑 Token:', token.substring(0, 30) + '...');
+
         const response = await fetch(`/api/notifications?email=${encodeURIComponent(email)}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
+
+        console.log('📡 Response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Server error:', response.status, errorText);
+            
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem('clientToken');
+                localStorage.removeItem('clientData');
+                window.location.href = '/client-login.html';
+                return;
+            }
+            
+            throw new Error(`Server responded with ${response.status}: ${errorText}`);
+        }
+
         const result = await response.json();
+        console.log('📦 Notifications received:', result);
 
-        if (!response.ok) throw new Error(result.message);
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to load notifications');
+        }
 
-        const notifications = result.data || [];
-        renderNotifications(notifications);
+        allNotifications = result.data || [];
+        renderNotifications(allNotifications);
 
     } catch (error) {
-        console.error('Load error:', error);
-        document.getElementById('notificationsContainer').innerHTML = `
+        console.error('❌ Load error:', error);
+        container.innerHTML = `
             <div class="empty" style="color:#dc2626;">
                 <div class="icon">❌</div>
-                <p>Error loading notifications</p>
-                <button onclick="loadNotifications()" style="margin-top:10px;padding:8px 20px;background:#005f5f;color:white;border:none;border-radius:6px;cursor:pointer;">Retry</button>
+                <p style="font-size:18px;font-weight:600;">Error loading notifications</p>
+                <p style="font-size:14px;margin-top:5px;">${error.message}</p>
+                <button onclick="loadNotifications()" style="margin-top:15px;padding:8px 20px;background:#005f5f;color:white;border:none;border-radius:6px;cursor:pointer;">
+                    Retry
+                </button>
             </div>
         `;
     }
 }
 
-async function renderNotifications(notifications) {
+// ============================================================
+// ✅ RENDER NOTIFICATIONS
+// ============================================================
+
+function renderNotifications(notifications) {
     const container = document.getElementById('notificationsContainer');
+
+    // Update count
+    const unread = notifications.filter(n => n.status === 'unread').length;
+    document.getElementById('notifCount').textContent = unread > 0 ? `🔔 ${unread} new` : '';
 
     if (notifications.length === 0) {
         container.innerHTML = `
@@ -183,28 +327,129 @@ async function renderNotifications(notifications) {
         return;
     }
 
-    // Mark all as read when viewing
-    const unread = notifications.filter(n => n.status === 'unread');
-    for (const n of unread) {
-        try {
-            await fetch(`/api/notifications/${n.id}/read`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-        } catch (e) {}
+    // Sort by newest first
+    const sorted = [...notifications].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    container.innerHTML = sorted.map(n => {
+        const typeClass = n.notification_type || 'announcement';
+        const typeLabel = {
+            'announcement': '📢 Announcement',
+            'offer': '🎉 Offer',
+            'update': '🔄 Update',
+            'promotion': '📣 Promotion',
+            'order_update': '📦 Order Update',
+            'chat_reply': '💬 Chat Reply',
+            'general': '📌 General'
+        }[typeClass] || '📌 Notification';
+
+        return `
+            <div class="card ${n.status === 'unread' ? 'unread' : ''}" onclick="viewNotification('${n.id}')">
+                <div class="header">
+                    <span class="type ${typeClass}">${typeLabel}</span>
+                    <span class="time">${new Date(n.created_at).toLocaleString()}</span>
+                </div>
+                ${n.title ? `<div class="title-text">${n.title}</div>` : ''}
+                <div class="message-text">${n.message.length > 120 ? n.message.substring(0, 120) + '...' : n.message}</div>
+                <div style="margin-top:8px;">
+                    <span class="badge ${n.status}">${n.status === 'unread' ? '🟢 New' : '✓ Read'}</span>
+                    <span style="font-size:13px;color:#005f5f;margin-left:10px;">Click to view details →</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================================
+// ✅ VIEW NOTIFICATION DETAIL
+// ============================================================
+
+async function viewNotification(notificationId) {
+    const notification = allNotifications.find(n => n.id === notificationId);
+    if (!notification) {
+        alert('Notification not found');
+        return;
     }
 
-    container.innerHTML = notifications.map(n => `
-        <div class="card ${n.status === 'unread' ? 'unread' : ''}">
-            <div class="header">
-                <span class="badge ${n.status}">${n.status === 'unread' ? '🔵 New' : '✓ Read'}</span>
-                <span class="time">${new Date(n.created_at).toLocaleString()}</span>
-            </div>
-            <div class="message">${n.message}</div>
-            ${n.order_id ? `<div style="margin-top:8px;font-size:13px;color:#6b7280;">📦 Order: #${n.order_id.substring(0, 8)}</div>` : ''}
-        </div>
-    `).join('');
+    // Mark as read
+    if (notification.status === 'unread') {
+        try {
+            await fetch(`/api/notifications/${notificationId}/read`, {
+                method: 'PUT',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            notification.status = 'read';
+        } catch (e) {
+            console.warn('Mark read error:', e);
+        }
+    }
+
+    // Show detail view
+    showDetailView(notification);
+    
+    // Reload list
+    renderNotifications(allNotifications);
 }
+
+// ============================================================
+// ✅ SHOW DETAIL VIEW
+// ============================================================
+
+function showDetailView(notification) {
+    document.getElementById('listView').style.display = 'none';
+    document.getElementById('detailView').style.display = 'block';
+
+    const typeLabels = {
+        'announcement': '📢 Announcement',
+        'offer': '🎉 Special Offer',
+        'update': '🔄 Update',
+        'promotion': '📣 Promotion',
+        'order_update': '📦 Order Update',
+        'chat_reply': '💬 Chat Reply',
+        'general': '📌 General'
+    };
+
+    document.getElementById('detailTitle').textContent = notification.title || 'Notification';
+    document.getElementById('detailType').textContent = typeLabels[notification.notification_type] || '📌 Notification';
+    document.getElementById('detailTime').textContent = `📅 ${new Date(notification.created_at).toLocaleString()}`;
+    document.getElementById('detailMessage').textContent = notification.message;
+
+    // Action button
+    const actionBtn = document.getElementById('detailActionBtn');
+    if (notification.action_url) {
+        actionBtn.href = notification.action_url;
+        actionBtn.textContent = '🔗 View Details';
+        actionBtn.style.display = 'inline-block';
+    } else if (notification.notification_type === 'offer') {
+        actionBtn.href = '/#services-sale';
+        actionBtn.textContent = '🛒 View Offers';
+        actionBtn.style.display = 'inline-block';
+    } else if (notification.notification_type === 'order_update') {
+        actionBtn.href = '/client-dashboard.html';
+        actionBtn.textContent = '📦 View Orders';
+        actionBtn.style.display = 'inline-block';
+    } else {
+        actionBtn.style.display = 'none';
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+// ✅ SHOW LIST VIEW
+// ============================================================
+
+function showListView() {
+    document.getElementById('listView').style.display = 'block';
+    document.getElementById('detailView').style.display = 'none';
+    loadNotifications();
+}
+
+// ============================================================
+// ✅ LOGOUT
+// ============================================================
 
 function logout() {
     localStorage.removeItem('clientToken');
@@ -212,12 +457,20 @@ function logout() {
     window.location.href = '/client-login.html';
 }
 
-// Auto-refresh every 30 seconds
+// ============================================================
+// ✅ AUTO-REFRESH
+// ============================================================
+
 setInterval(() => {
-    loadNotifications();
+    if (document.getElementById('listView').style.display !== 'none') {
+        loadNotifications();
+    }
 }, 30000);
 
-checkAuth();
+// ============================================================
+// ✅ INIT
+// ============================================================
+
 loadNotifications();
 </script>
 </body>
