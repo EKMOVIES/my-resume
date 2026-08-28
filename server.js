@@ -1,5 +1,8 @@
 require('dotenv').config();
 
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+console.log('🌐 BASE_URL:', BASE_URL);
+
 const express = require('express');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
@@ -23,8 +26,7 @@ const is_live = false;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-console.log('🌐 BASE_URL:', BASE_URL);
+
 /* =========================================================
    SUPABASE
 ========================================================= */
