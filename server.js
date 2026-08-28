@@ -3829,9 +3829,9 @@ app.post('/api/payment/initiate', async (req, res) => {
             })
             .eq('id', order_id);
 
-         return res.json({
+        return res.json({
             success: true,
-            redirect_url: `${BASE_URL}/payment-success.html?order=${order_id}&test=true`
+            redirect_url: `${process.env.BASE_URL || 'http://localhost:3000'}/payment-success.html?order=${order_id}&test=true`
         });
 
     } catch (error) {
