@@ -102,7 +102,11 @@ function getFormData() {
         resume_url: document.getElementById('resume_url').value.trim(),
         facebook_url: document.getElementById('facebook_url').value.trim(),
         linkedin_url: document.getElementById('linkedin_url').value.trim(),
-        github_url: document.getElementById('github_url').value.trim()
+        github_url: document.getElementById('github_url').value.trim(),
+        about_bio: document.getElementById('aboutBio').value.trim(),
+         stat_projects: document.getElementById('statProjects').value || 0,
+    stat_clients: document.getElementById('statClients').value || 0,
+    stat_experience: document.getElementById('statExperience').value || 0
     };
 }
 
@@ -118,7 +122,11 @@ function fillForm(profile) {
     document.getElementById('facebook_url').value = profile.facebook_url || '';
     document.getElementById('linkedin_url').value = profile.linkedin_url || '';
     document.getElementById('github_url').value = profile.github_url || '';
-    
+    document.getElementById('statProjects').value = profile.stat_projects || 0;
+document.getElementById('statClients').value = profile.stat_clients || 0;
+document.getElementById('statExperience').value = profile.stat_experience || 0;
+    document.getElementById('aboutBio').value = profile.about_bio || '';
+
     if (profile.profile_image) {
         showImagePreview(profile.profile_image);
     }

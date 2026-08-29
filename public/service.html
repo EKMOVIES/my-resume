@@ -27,13 +27,28 @@
             justify-content: space-between;
             align-items: center;
         }
-        .brand {
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--text-primary, #1f2937);
-            text-decoration: none;
-        }
-        .brand span { color: #005f5f; }
+       /* ব্র্যান্ড লোগো অ্যানিমেশন */
+.brand {
+    transition: all 0.3s ease;
+}
+
+.brand:hover .brand-icon {
+    transform: rotate(5deg) scale(1.05);
+    box-shadow: 0 6px 20px rgba(0,95,95,0.3);
+}
+
+.brand-icon {
+    transition: all 0.3s ease;
+}
+
+/* ডার্ক মোড সাপোর্ট */
+[data-theme="dark"] .brand {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .brand span {
+    color: #5eead4;
+}
         .nav nav {
             display: flex;
             gap: 25px;
@@ -592,7 +607,35 @@
 <!-- Header -->
 <header class="site-header">
     <div class="container nav">
-        <a class="brand" href="/">ISHTIAK<span>.</span></a>
+           <a class="brand" href="/" style="display:flex;align-items:center;gap:12px;text-decoration:none;">
+    <!-- লোগো মার্ক -->
+    <div style="
+        width:40px;
+        height:40px;
+        background:linear-gradient(135deg, #005f5f, #7c3aed);
+        border-radius:10px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:white;
+        font-weight:800;
+        font-size:16px;
+        transform:rotate(-5deg);
+        box-shadow:0 4px 12px rgba(0,95,95,0.2);
+    ">
+        &lt;/&gt;
+    </div>
+    
+    <!-- টেক্সট -->
+    <div style="display:flex;flex-direction:column;line-height:1.2;">
+        <span style="font-weight:800;font-size:20px;color:var(--text-primary);">
+            Ishtiak<span style="color:#005f5f;">.</span>
+        </span>
+        <span style="font-size:9px;font-weight:600;color:#6b7280;letter-spacing:2px;text-transform:uppercase;">
+            Dev &amp; Design
+        </span>
+    </div>
+</a>
         <nav id="mainNav">
             <a href="/#services-sale">Services</a>
             <a href="/#projects">Projects</a>

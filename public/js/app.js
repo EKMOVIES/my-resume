@@ -149,6 +149,10 @@ function setResumeLink(id, url) {
    LOAD PUBLIC PROFILE
 ========================================================= */
 
+/* =========================================================
+   LOAD PUBLIC PROFILE - COMPLETE VERSION
+========================================================= */
+
 async function loadProfile() {
     showSkeleton('heroContainer', 'hero', 1);
     showSkeleton('profileBioContainer', 'card', 1);
@@ -166,14 +170,59 @@ async function loadProfile() {
 
         const profile = result.data;
 
+        // ============================================================
+        // 1. BASIC PROFILE INFO
+        // ============================================================
+        
         setText('profileName', profile.name, 'Ishtiak Hossain');
         setText('footerName', profile.name, 'Ishtiak Hossain');
         setText('profileTitle', profile.title, 'Creative Developer');
-        setText('profileHeroTitle', profile.title, 'Creative Developer');
         setText('profileBio', profile.bio, 'Building websites, designs and digital projects.');
-        setText('profileHeroBio', profile.bio, 'Building websites, designs and digital projects.');
         setText('profileLocation', profile.location, 'Location not available');
 
+        // ============================================================
+        // 2. HERO TITLE (ডায়নামিক)
+        // ============================================================
+        
+        const heroTitle = document.getElementById('profileHeroTitle');
+        if (heroTitle) {
+            heroTitle.textContent = profile.title || 'Creative Developer';
+        }
+
+        // ============================================================
+        // 3. HERO BIO (ডায়নামিক + Show More)
+        // ============================================================
+        
+        const heroBioText = document.getElementById('profileHeroBioText');
+        const heroBioToggle = document.getElementById('heroBioToggle');
+        
+        if (heroBioText) {
+            const fullBio = profile.bio || 'Building websites, designs and digital projects.';
+            heroBioText.textContent = fullBio;
+            
+            // বায়ো লম্বা হলে "Show More" বাটন দেখান
+            if (fullBio.length > 100) {
+                heroBioText.classList.add('bio-collapsed');
+                if (heroBioToggle) {
+                    heroBioToggle.style.display = 'inline-block';
+                }
+            } else {
+                heroBioText.classList.remove('bio-collapsed');
+                if (heroBioToggle) {
+                    heroBioToggle.style.display = 'none';
+                }
+            }
+        }
+const aboutBio = document.getElementById('profileBio');
+if (aboutBio) {
+    // যদি about_bio থাকে তাহলে সেটা দেখান, নাহলে ডিফল্ট bio
+    const detailedBio = profile.about_bio || profile.bio || 'Building websites, designs and digital projects.';
+    aboutBio.textContent = detailedBio;
+}
+        // ============================================================
+        // 4. PROFILE AVATAR (ইমেজ অথবা ইনিশিয়াল)
+        // ============================================================
+        
         const avatar = document.getElementById('profileAvatar');
         if (avatar) {
             if (profile.profile_image) {
@@ -188,28 +237,10 @@ async function loadProfile() {
             }
         }
 
-   const heroBio = document.getElementById('profileHeroBio');
-        if (heroBio) {
-            const fullBio = profile.bio || 'Building websites, designs and digital projects.';
-            heroBio.textContent = fullBio;
-            
-            // Check if bio is long enough for show more
-            const bioContainer = document.getElementById('heroBioContainer');
-            const toggleBtn = document.getElementById('heroBioToggle');
-            
-            if (fullBio.length > 100) {
-                // Bio is long - show toggle
-                heroBio.classList.add('bio-collapsed');
-                if (toggleBtn) toggleBtn.style.display = 'inline-block';
-            } else {
-                // Bio is short - hide toggle
-                heroBio.classList.remove('bio-collapsed');
-                if (toggleBtn) toggleBtn.style.display = 'none';
-            }
-        }
-
-
-
+        // ============================================================
+        // 5. CONTACT INFO (Email, Phone)
+        // ============================================================
+        
         const email = document.getElementById('profileEmail');
         if (email) {
             if (profile.email) {
@@ -232,10 +263,15 @@ async function loadProfile() {
             }
         }
 
+        // ============================================================
+        // 6. SOCIAL LINKS (Facebook, LinkedIn, GitHub)
+        // ============================================================
+        
         setSocialLink('facebookLink', profile.facebook_url);
         setSocialLink('linkedinLink', profile.linkedin_url);
         setSocialLink('githubLink', profile.github_url);
 
+        // হিরোতে সোশ্যাল আইকন
         const heroFacebook = document.getElementById('heroFacebook');
         const heroLinkedin = document.getElementById('heroLinkedin');
         const heroGithub = document.getElementById('heroGithub');
@@ -243,7 +279,7 @@ async function loadProfile() {
         if (heroFacebook) {
             if (profile.facebook_url) {
                 heroFacebook.href = profile.facebook_url;
-                heroFacebook.style.display = 'inline-block';
+                heroFacebook.style.display = 'inline-flex';
             } else {
                 heroFacebook.style.display = 'none';
             }
@@ -252,7 +288,7 @@ async function loadProfile() {
         if (heroLinkedin) {
             if (profile.linkedin_url) {
                 heroLinkedin.href = profile.linkedin_url;
-                heroLinkedin.style.display = 'inline-block';
+                heroLinkedin.style.display = 'inline-flex';
             } else {
                 heroLinkedin.style.display = 'none';
             }
@@ -261,30 +297,110 @@ async function loadProfile() {
         if (heroGithub) {
             if (profile.github_url) {
                 heroGithub.href = profile.github_url;
-                heroGithub.style.display = 'inline-block';
+                heroGithub.style.display = 'inline-flex';
             } else {
                 heroGithub.style.display = 'none';
             }
         }
-    
+
+        
+        // ============================================================
+        // 7. RESUME LINK (Download CV)
+        // ============================================================
+        
         setResumeLink('resumeLink', profile.resume_url);
         setResumeLink('heroResumeLink', profile.resume_url);
 
+        // ============================================================
+        // 8. STATS (Projects, Clients, Experience) - ডায়নামিক
+        // ============================================================
+        
+        const statProjects = document.getElementById('statProjects');
+        const statClients = document.getElementById('statClients');
+        const statExperience = document.getElementById('statExperience');
+
+        // অ্যাডমিন প্যানেল থেকে সেট করা ভ্যালু ব্যবহার করুন
+        if (statProjects) {
+            const count = profile.stat_projects || 0;
+            statProjects.textContent = count > 0 ? count + '+' : '0';
+        }
+
+        if (statClients) {
+            const count = profile.stat_clients || 0;
+            statClients.textContent = count > 0 ? count + '+' : '0';
+        }
+
+        if (statExperience) {
+            const count = profile.stat_experience || 0;
+            statExperience.textContent = count > 0 ? count + '+' : '0';
+        }
+
+        // ============================================================
+        // 9. STATS - অটো ক্যালকুলেশন (ঐচ্ছিক)
+        //    যদি অ্যাডমিন প্যানেলে ভ্যালু না দেন, তাহলে অটো ক্যালকুলেট
+        // ============================================================
+        
+        // যদি stat_projects 0 হয়, তাহলে আসল প্রজেক্ট কাউন্ট দেখান
+        if (statProjects && (profile.stat_projects === 0 || !profile.stat_projects)) {
+            try {
+                const projectResponse = await fetch('/api/projects');
+                const projectResult = await projectResponse.json();
+                if (projectResult.success && projectResult.data) {
+                    const count = projectResult.data.length;
+                    statProjects.textContent = count > 0 ? count + '+' : '0';
+                }
+            } catch (e) {
+                console.warn('Could not auto-count projects:', e);
+            }
+        }
+
+        // যদি stat_experience 0 হয়, তাহলে এক্সপেরিয়েন্স থেকে ইয়ার্স ক্যালকুলেট
+        if (statExperience && (profile.stat_experience === 0 || !profile.stat_experience)) {
+            try {
+                const expResponse = await fetch('/api/experience');
+                const expResult = await expResponse.json();
+                if (expResult.success && expResult.data) {
+                    let totalYears = 0;
+                    expResult.data.forEach(exp => {
+                        if (exp.start_date) {
+                            const start = new Date(exp.start_date);
+                            const end = exp.end_date ? new Date(exp.end_date) : new Date();
+                            const years = (end - start) / (1000 * 60 * 60 * 24 * 365);
+                            totalYears += years;
+                        }
+                    });
+                    const years = Math.floor(totalYears);
+                    statExperience.textContent = years > 0 ? years + '+' : '0';
+                }
+            } catch (e) {
+                console.warn('Could not auto-calculate experience:', e);
+            }
+        }
+
+        console.log('✅ Profile loaded successfully.');
+        
+        // ============================================================
+        // 10. HIDE SKELETONS
+        // ============================================================
+        
         hideSkeleton('heroContainer');
         hideSkeleton('profileBioContainer');
-        console.log('✅ Profile loaded successfully.');
+
     } catch (error) {
         console.error('❌ Profile loading error:', error);
         hideSkeleton('heroContainer');
         hideSkeleton('profileBioContainer');
+        
+        // Error হলে ডিফল্ট দেখান
+        document.getElementById('profileName').textContent = 'Ishtiak Hossain';
+        document.getElementById('profileBio').textContent = 'Unable to load profile. Please try again.';
     }
 }
-
 
 let bioExpanded = false;
 
 function toggleHeroBio() {
-    const bio = document.getElementById('profileHeroBio');
+    const bio = document.getElementById('profileHeroBioText');
     const btn = document.getElementById('heroBioToggle');
     
     if (!bio || !btn) return;
@@ -297,6 +413,50 @@ function toggleHeroBio() {
     } else {
         bio.classList.add('bio-collapsed');
         btn.textContent = 'Show More';
+    }
+}
+
+// প্রজেক্ট কাউন্ট
+async function getProjectCount() {
+    try {
+        const response = await fetch('/api/projects');
+        const result = await response.json();
+        return result.data?.length || 0;
+    } catch {
+        return 0;
+    }
+}
+
+// ক্লায়েন্ট কাউন্ট
+async function getClientCount() {
+    try {
+        const response = await fetch('/api/admin/clients');
+        const result = await response.json();
+        return result.data?.length || 0;
+    } catch {
+        return 0;
+    }
+}
+
+// এক্সপেরিয়েন্স ইয়ার্স
+async function getExperienceYears() {
+    try {
+        const response = await fetch('/api/experience');
+        const result = await response.json();
+        const experiences = result.data || [];
+        // মোট ইয়ার্স ক্যালকুলেট করুন
+        let totalYears = 0;
+        experiences.forEach(exp => {
+            if (exp.start_date) {
+                const start = new Date(exp.start_date);
+                const end = exp.end_date ? new Date(exp.end_date) : new Date();
+                const years = (end - start) / (1000 * 60 * 60 * 24 * 365);
+                totalYears += years;
+            }
+        });
+        return Math.floor(totalYears);
+    } catch {
+        return 0;
     }
 }
 /* =========================================================
@@ -418,6 +578,10 @@ async function loadExperience() {
    LOAD SKILLS
 ========================================================= */
 
+/* =========================================================
+   LOAD SKILLS - REDESIGNED
+========================================================= */
+
 async function loadSkills() {
     showSkeleton('skillsContainer', 'skill', 3);
     
@@ -438,23 +602,17 @@ async function loadSkills() {
 
         if (data.length === 0) {
             container.innerHTML = `
-                <div class="card">
-                    <h3>Web Development</h3>
-                    <p>HTML5, CSS3, JavaScript, Node.js, Express.js</p>
-                </div>
-                <div class="card">
-                    <h3>Graphic Design</h3>
-                    <p>Canva, Photoshop and visual content design</p>
-                </div>
-                <div class="card">
-                    <h3>Computer Skills</h3>
-                    <p>MS Word, Excel and general computer operations</p>
+                <div style="text-align:center;padding:60px 20px;color:#6b7280;grid-column:1/-1;">
+                    <p style="font-size:48px;margin-bottom:10px;">🎯</p>
+                    <p style="font-size:18px;font-weight:600;">Skills coming soon</p>
+                    <p style="font-size:14px;margin-top:5px;">I'm constantly learning and growing!</p>
                 </div>
             `;
             hideSkeleton('skillsContainer');
             return;
         }
 
+        // Group skills by category
         const grouped = data.reduce((acc, skill) => {
             const category = skill.category || 'Other';
             if (!acc[category]) acc[category] = [];
@@ -462,22 +620,44 @@ async function loadSkills() {
             return acc;
         }, {});
 
+        // Sort categories
         const sortedCategories = Object.keys(grouped).sort();
 
-        container.innerHTML = sortedCategories.map(category => {
+        // Category Icons Mapping
+        const categoryIcons = {
+            'Web Development': '🌐',
+            'Frontend': '🎨',
+            'Backend': '⚙️',
+            'Database': '🗄️',
+            'Design': '🖌️',
+            'Cloud': '☁️',
+            'DevOps': '🚀',
+            'Mobile': '📱',
+            'Programming': '💻',
+            'Other': '📌'
+        };
+
+        container.innerHTML = sortedCategories.map((category, catIndex) => {
             const skills = grouped[category];
+            const icon = categoryIcons[category] || '📌';
+            
             return `
-                <div class="card">
-                    <h3>${category}</h3>
-                    <div style="margin-top:10px;">
-                        ${skills.map(s => `
-                            <div style="margin-bottom:8px;">
-                                <span style="font-size:14px;font-weight:500;">${s.name}</span>
-                                ${s.level ? `
-                                    <div style="width:100%;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin-top:3px;">
-                                        <div style="width:${s.level}%;height:100%;background:#005f5f;border-radius:3px;"></div>
-                                    </div>
-                                ` : ''}
+                <div class="skill-category" data-aos="fade-up" data-aos-delay="${catIndex * 100 + 100}">
+                    <div class="category-header">
+                        <div class="category-icon">${icon}</div>
+                        <h3 class="category-name">${category}</h3>
+                        <span class="category-count">${skills.length}</span>
+                    </div>
+                    <div class="skill-items">
+                        ${skills.map(skill => `
+                            <div class="skill-item" data-level="${skill.level || 0}">
+                                <div class="skill-info">
+                                    <span class="skill-name">${skill.name}</span>
+                                    <span class="skill-percentage">${skill.level || 0}%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${skill.level || 0}%;"></div>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -487,11 +667,47 @@ async function loadSkills() {
 
         hideSkeleton('skillsContainer');
         console.log('✅ Skills loaded successfully.');
+
+        // ✅ Animate progress bars on scroll
+        animateSkillBars();
+
     } catch (error) {
         console.error('❌ Skills loading error:', error);
         hideSkeleton('skillsContainer');
     }
 }
+
+// ============================================================
+// 📊 ANIMATE SKILL BARS ON SCROLL
+// ============================================================
+
+function animateSkillBars() {
+    const skillItems = document.querySelectorAll('.skill-item');
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const item = entry.target;
+                const level = item.dataset.level || 0;
+                const fill = item.querySelector('.progress-fill');
+                
+                if (fill) {
+                    // Reset and animate
+                    fill.style.width = '0%';
+                    setTimeout(() => {
+                        fill.style.width = level + '%';
+                    }, 200);
+                }
+            }
+        });
+    }, {
+        threshold: 0.3,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    skillItems.forEach(item => observer.observe(item));
+}
+
 
 /* =========================================================
    LOAD SERVICES
@@ -558,98 +774,115 @@ async function loadServices() {
    LOAD PROJECTS - Updated with New Design
 ========================================================= */
 
-async function loadProjects() {
-    showSkeleton('projectsContainer', 'project', 3);
-    
+// ============================================================
+// ✅ PROJECTS WITH FILTER
+// ============================================================
+
+let currentCategory = 'all';
+
+// Load projects with filter
+async function loadProjects(category = 'all') {
+    const grid = document.getElementById('projectsGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="loading">⏳ Loading projects...</div>';
+
     try {
-        const response = await fetch('/api/projects');
+        const url = category && category !== 'all' 
+            ? `/api/projects?category=${category}` 
+            : '/api/projects';
+
+        const response = await fetch(url);
         const result = await response.json();
 
-        if (!response.ok || !result.success) {
-            console.error('Could not load projects:', result);
-            hideSkeleton('projectsContainer');
-            return;
-        }
+        if (!response.ok) throw new Error(result.message);
 
-        const container = document.getElementById('projectsContainer');
-        if (!container) return;
+        const projects = result.data || [];
+        renderProjects(projects);
 
-        const data = result.data || [];
-
-        // ✅ Change container class for grid
-        container.className = 'projects-grid';
-
-        if (data.length === 0) {
-            container.innerHTML = `
-                <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-secondary);">
-                    <p style="font-size:18px;">No projects added yet.</p>
-                    <p style="font-size:14px;">Add from Admin Panel</p>
-                </div>
-            `;
-            hideSkeleton('projectsContainer');
-            return;
-        }
-
-        container.innerHTML = data.map(item => {
-            const projectUrl = `${window.location.origin}/project/${item.id}`;
-            
-            // ✅ Get first 3 tech tags
-            const techs = item.technologies ? item.technologies.split(',').map(t => t.trim()).slice(0, 3) : [];
-            
-            // ✅ Determine badge color based on project type
-            const badgeText = item.technologies ? item.technologies.split(',')[0].trim() : 'Project';
-            
-            const imageHtml = item.image_url ? `
-                <div class="project-image-wrapper">
-                    <img src="${item.image_url}" alt="${item.title}" class="project-image" loading="lazy" onerror="this.style.display='none'">
-                    <span class="project-badge">${badgeText}</span>
-                </div>
-            ` : `
-                <div class="project-image-wrapper" style="background:linear-gradient(135deg,#005f5f,#003d3d);height:200px;display:flex;align-items:center;justify-content:center;">
-                    <span style="font-size:48px;color:rgba(255,255,255,0.3);">🚀</span>
-                    <span class="project-badge">${badgeText}</span>
-                </div>
-            `;
-
-            return `
-                <div class="project-card">
-                    ${imageHtml}
-                    <div class="project-content">
-                        <h3 class="project-title">${item.title || 'Project'}</h3>
-                        
-                        ${techs.length > 0 ? `
-                            <div class="project-tech">
-                                ${techs.map(tech => `<span>${tech}</span>`).join('')}
-                                ${item.technologies && item.technologies.split(',').length > 3 ? `<span>+${item.technologies.split(',').length - 3}</span>` : ''}
-                            </div>
-                        ` : ''}
-                        
-                        <p class="project-description">${item.description || 'No description available.'}</p>
-                        
-                        <div class="project-links">
-                            ${item.live_url ? `<a href="${item.live_url}" target="_blank" rel="noopener noreferrer">🔗 Live Demo</a>` : ''}
-                            ${item.github_url ? `<a href="${item.github_url}" target="_blank" rel="noopener noreferrer" class="github-link">💻 GitHub</a>` : ''}
-                            ${!item.live_url && !item.github_url ? `<span style="color:var(--text-secondary);font-size:13px;">Coming soon</span>` : ''}
-                        </div>
-                        
-                        <div class="project-share">
-                            <button onclick="shareProject('facebook', '${item.title}', '${projectUrl}')">📘</button>
-                            <button onclick="shareProject('twitter', '${item.title}', 'projectUrl}')">🐦</button>
-                            <button onclick="shareProject('linkedin', '${item.title}', '${projectUrl}')">🔗</button>
-                            <button onclick="shareProject('whatsapp', '${item.title}', '${projectUrl}')">💬</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        hideSkeleton('projectsContainer');
-        console.log('✅ Projects loaded successfully.');
     } catch (error) {
-        console.error('❌ Projects loading error:', error);
-        hideSkeleton('projectsContainer');
+        grid.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#dc2626;">
+                ❌ Error loading projects: ${error.message}
+            </div>
+        `;
     }
 }
+
+// Render projects
+function renderProjects(projects) {
+    const grid = document.getElementById('projectsGrid');
+    if (!grid) return;
+
+    if (projects.length === 0) {
+        grid.innerHTML = `
+            <div style="text-align:center;padding:60px 20px;color:#6b7280;grid-column:1/-1;">
+                <p style="font-size:24px;margin-bottom:10px;">📂</p>
+                <p style="font-size:18px;font-weight:600;">No projects found</p>
+                <p style="font-size:14px;margin-top:5px;">Try selecting a different category</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = projects.map((project, index) => {
+        const categoryColors = {
+            'website': 'website',
+            'logo': 'logo',
+            'poster': 'poster',
+            'app': 'app',
+            'graphics': 'graphics',
+            'branding': 'branding'
+        };
+        const categoryClass = categoryColors[project.category] || 'website';
+
+        return `
+            <div class="project-card" style="animation-delay: ${index * 0.1}s">
+                ${project.image_url ? `
+                    <img src="${project.image_url}" alt="${project.title}" 
+                         style="width:100%;height:200px;object-fit:cover;"
+                         onerror="this.style.display='none'">
+                ` : `
+                    <div style="width:100%;height:200px;background:linear-gradient(135deg,#005f5f,#0a7a7a);display:flex;align-items:center;justify-content:center;font-size:48px;color:white;">
+                        🚀
+                    </div>
+                `}
+                <div style="padding:20px;">
+                    <span class="category-badge ${categoryClass}">${project.category || 'Website'}</span>
+                    <h3 style="margin:10px 0 5px;font-size:20px;">${project.title}</h3>
+                    <p style="color:#6b7280;font-size:14px;line-height:1.6;">${project.description || ''}</p>
+                    ${project.technologies ? `
+                        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">
+                            ${project.technologies.split(',').map(tech => `
+                                <span style="background:#f3f4f6;padding:2px 12px;border-radius:12px;font-size:11px;color:#4b5563;">${tech.trim()}</span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                        ${project.live_url ? `<a href="${project.live_url}" target="_blank" style="background:#005f5f;color:white;padding:8px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">🔗 Live Demo</a>` : ''}
+                        ${project.github_url ? `<a href="${project.github_url}" target="_blank" style="background:#1f2937;color:white;padding:8px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">💻 GitHub</a>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ✅ Filter Button Event Listeners
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Remove active class from all buttons
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        
+        // Add active class to clicked button
+        this.classList.add('active');
+        
+        // Get category and load projects
+        const category = this.dataset.category;
+        currentCategory = category;
+        loadProjects(category);
+    });
+});
 
 /* =========================================================
    PROJECT SHARE FUNCTION
@@ -1475,6 +1708,612 @@ setInterval(() => {
     if (chatOpen) loadChatMessages();
 }, 10000);
 
+
+// ============================================================
+// ✅ PROJECTS WITH SEARCH & FILTER - FRONTEND
+// ============================================================
+
+let allProjectsData = [];
+let currentCategoryFrontend = 'all';
+
+// Load projects
+async function loadProjectsFrontend(category = 'all') {
+    const grid = document.getElementById('projectsGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="loading" style="text-align:center;padding:40px;color:#6b7280;">⏳ Loading projects...</div>';
+
+    try {
+        const url = category && category !== 'all' 
+            ? `/api/projects?category=${category}` 
+            : '/api/projects';
+
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        allProjectsData = result.data || [];
+        renderProjectsFrontend(allProjectsData);
+        updateProjectCountFrontend(allProjectsData.length);
+
+    } catch (error) {
+        grid.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#dc2626;">
+                ❌ Error loading projects: ${error.message}
+                <br><br>
+                <button onclick="loadProjectsFrontend('${category}')" style="padding:10px 25px;background:#005f5f;color:white;border:none;border-radius:8px;cursor:pointer;">
+                    Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Render projects
+function renderProjectsFrontend(projects) {
+    const grid = document.getElementById('projectsGrid');
+    if (!grid) return;
+
+    if (projects.length === 0) {
+        grid.innerHTML = `
+            <div style="text-align:center;padding:60px 20px;color:#6b7280;grid-column:1/-1;">
+                <p style="font-size:48px;margin-bottom:10px;">🔍</p>
+                <p style="font-size:18px;font-weight:600;">No projects found</p>
+                <p style="font-size:14px;margin-top:5px;">Try adjusting your search or filter</p>
+            </div>
+        `;
+        return;
+    }
+
+    const searchTerm = document.getElementById('projectSearchInput')?.value?.trim() || '';
+
+    grid.innerHTML = projects.map((project, index) => {
+        const categoryColors = {
+            'website': 'website',
+            'logo': 'logo',
+            'poster': 'poster',
+            'app': 'app',
+            'graphics': 'graphics',
+            'branding': 'branding'
+        };
+        const categoryClass = categoryColors[project.category] || 'website';
+
+        // Highlight search term
+        const highlightedTitle = highlightTextFrontend(project.title, searchTerm);
+        const highlightedDesc = highlightTextFrontend(project.description, searchTerm);
+        const highlightedTech = highlightTextFrontend(project.technologies, searchTerm);
+
+        return `
+            <div class="project-card" style="animation-delay: ${index * 0.08}s">
+                ${project.image_url ? `
+                    <img src="${project.image_url}" alt="${project.title}" 
+                         style="width:100%;height:200px;object-fit:cover;"
+                         onerror="this.style.display='none'">
+                ` : `
+                    <div style="width:100%;height:200px;background:linear-gradient(135deg,#005f5f,#0a7a7a);display:flex;align-items:center;justify-content:center;font-size:48px;color:white;">
+                        🚀
+                    </div>
+                `}
+                <div style="padding:20px;">
+                    <span class="category-badge ${categoryClass}">${project.category || 'Website'}</span>
+                    <h3 style="margin:10px 0 5px;font-size:20px;">${highlightedTitle}</h3>
+                    <p style="color:#6b7280;font-size:14px;line-height:1.6;">${highlightedDesc || ''}</p>
+                    ${project.technologies ? `
+                        <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">
+                            ${project.technologies.split(',').map(tech => `
+                                <span style="background:#f3f4f6;padding:2px 12px;border-radius:12px;font-size:11px;color:#4b5563;">${highlightTechFrontend(tech.trim(), searchTerm)}</span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                        ${project.live_url ? `<a href="${project.live_url}" target="_blank" style="background:#005f5f;color:white;padding:8px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">🔗 Live Demo</a>` : ''}
+                        ${project.github_url ? `<a href="${project.github_url}" target="_blank" style="background:#1f2937;color:white;padding:8px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;">💻 GitHub</a>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Highlight text
+function highlightTextFrontend(text, searchTerm) {
+    if (!text || !searchTerm) return text || '';
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark style="background:#fef3c7;padding:0 2px;border-radius:2px;">$1</mark>');
+}
+
+function highlightTechFrontend(text, searchTerm) {
+    if (!text || !searchTerm) return text;
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark style="background:#fef3c7;padding:0 2px;border-radius:2px;">$1</mark>');
+}
+
+// Filter projects (Search + Category)
+function filterProjectsFrontend() {
+    const searchTerm = document.getElementById('projectSearchInput')?.value?.toLowerCase().trim() || '';
+    const clearBtn = document.getElementById('clearSearchFrontend');
+
+    if (searchTerm.length > 0) {
+        clearBtn.style.display = 'block';
+    } else {
+        clearBtn.style.display = 'none';
+    }
+
+    let filtered = allProjectsData;
+
+    // Apply category filter
+    if (currentCategoryFrontend !== 'all') {
+        filtered = filtered.filter(p => (p.category || 'website') === currentCategoryFrontend);
+    }
+
+    // Apply search filter
+    if (searchTerm) {
+        filtered = filtered.filter(p => {
+            const title = (p.title || '').toLowerCase();
+            const description = (p.description || '').toLowerCase();
+            const technologies = (p.technologies || '').toLowerCase();
+            const category = (p.category || '').toLowerCase();
+            
+            return title.includes(searchTerm) || 
+                   description.includes(searchTerm) || 
+                   technologies.includes(searchTerm) || 
+                   category.includes(searchTerm);
+        });
+    }
+
+    renderProjectsFrontend(filtered);
+    updateProjectCountFrontend(filtered.length);
+}
+
+// Filter by category
+function filterByCategoryFrontend(category, btn) {
+    currentCategoryFrontend = category;
+    
+    document.querySelectorAll('.filter-buttons .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    filterProjectsFrontend();
+}
+
+// Clear search
+function clearSearchFrontend() {
+    document.getElementById('projectSearchInput').value = '';
+    document.getElementById('clearSearchFrontend').style.display = 'none';
+    filterProjectsFrontend();
+    document.getElementById('projectSearchInput').focus();
+}
+
+// Update project count
+function updateProjectCountFrontend(count) {
+    const el = document.getElementById('visibleCountFrontend');
+    if (el) {
+        el.textContent = count;
+    }
+}
+
+
+
+// ============================================================
+// 👥 LOAD TEAM MEMBERS - WITH VIEW DETAILS
+// ============================================================
+
+async function loadTeamMembers() {
+    const container = document.getElementById('teamGrid');
+    if (!container) return;
+
+    container.innerHTML = `<div class="loading">⏳ Loading team members...</div>`;
+
+    try {
+        const response = await fetch('/api/team');
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const members = result.data || [];
+
+        if (members.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:#6b7280;grid-column:1/-1;">
+                    <p style="font-size:48px;margin-bottom:10px;">👥</p>
+                    <p style="font-size:18px;font-weight:600;">Team coming soon</p>
+                    <p style="font-size:14px;margin-top:5px;">We're building an amazing team!</p>
+                </div>
+            `;
+            return;
+        }
+
+        renderTeamMembersWithDetails(members, container);
+
+    } catch (error) {
+        console.error('Team load error:', error);
+        container.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#dc2626;grid-column:1/-1;">
+                ❌ Error loading team: ${error.message}
+                <br><br>
+                <button onclick="loadTeamMembers()" style="padding:10px 25px;background:#005f5f;color:white;border:none;border-radius:8px;cursor:pointer;">
+                    Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+// ============================================================
+// ✅ RENDER TEAM WITH VIEW DETAILS BUTTON
+// ============================================================
+
+function renderTeamMembersWithDetails(members, container) {
+    container.innerHTML = members.map((member, index) => {
+        // Social links for card
+        const socialLinks = [];
+        if (member.social_linkedin) socialLinks.push({ icon: 'fab fa-linkedin-in', url: member.social_linkedin });
+        if (member.social_github) socialLinks.push({ icon: 'fab fa-github', url: member.social_github });
+        if (member.social_twitter) socialLinks.push({ icon: 'fab fa-twitter', url: member.social_twitter });
+        if (member.social_dribbble) socialLinks.push({ icon: 'fab fa-dribbble', url: member.social_dribbble });
+        if (member.social_behance) socialLinks.push({ icon: 'fab fa-behance', url: member.social_behance });
+
+        return `
+            <div class="team-card" data-aos="fade-up" data-aos-delay="${index * 100 + 100}">
+                <div class="team-image">
+                    ${member.image_url ? 
+                        `<img src="${member.image_url}" alt="${member.name}" loading="lazy" onerror="this.style.display='none'">` : 
+                        `<div style="width:100%;height:100%;background:linear-gradient(135deg,#005f5f,#0a7a7a);display:flex;align-items:center;justify-content:center;font-size:64px;color:white;">👤</div>`
+                    }
+                    <div class="team-overlay">
+                        <div class="team-social">
+                            ${socialLinks.map(s => `
+                                <a href="${s.url}" target="_blank" aria-label="Social"><i class="${s.icon}"></i></a>
+                            `).join('')}
+                            ${socialLinks.length === 0 ? '<span style="color:white;font-size:13px;">No social links</span>' : ''}
+                        </div>
+                    </div>
+                    ${member.experience_years ? `
+                        <div class="team-experience-badge">
+                            <span>${member.experience_years}+ Years</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="team-info">
+                    <h3>${member.name}</h3>
+                    <span class="team-role">${member.role}</span>
+                    <p>${member.bio ? member.bio.substring(0, 80) + (member.bio.length > 80 ? '...' : '') : 'Passionate about creating amazing digital experiences.'}</p>
+                    ${member.skills && member.skills.length > 0 ? `
+                        <div class="team-skills">
+                            ${member.skills.slice(0, 3).map(s => `<span>${s}</span>`).join('')}
+                            ${member.skills.length > 3 ? `<span>+${member.skills.length - 3}</span>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="team-stats">
+                        ${member.projects_count ? `
+                            <div class="stat-item">
+                                <span class="stat-number">${member.projects_count}+</span>
+                                <span class="stat-label">Projects</span>
+                            </div>
+                        ` : ''}
+                        ${member.satisfaction_rate ? `
+                            <div class="stat-item">
+                                <span class="stat-number">${member.satisfaction_rate}%</span>
+                                <span class="stat-label">Satisfaction</span>
+                            </div>
+                        ` : ''}
+                        ${member.rating ? `
+                            <div class="stat-item">
+                                <span class="stat-number">${member.rating}</span>
+                                <span class="stat-label">Rating</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <!-- ✅ View Details Button -->
+                    <button class="btn-view-details" onclick="openMemberModal('${member.id}')">
+                        <i class="fas fa-eye"></i> View Details
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ============================================================
+// 👤 OPEN MEMBER DETAILS MODAL
+// ============================================================
+
+let currentMember = null;
+
+async function openMemberModal(memberId) {
+    try {
+        // Fetch single member details
+        const response = await fetch(`/api/team/${memberId}`);
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const member = result.data;
+        currentMember = member;
+
+        // Fill modal with data
+        document.getElementById('modalName').textContent = member.name;
+        document.getElementById('modalRole').textContent = member.role;
+        document.getElementById('modalBio').textContent = member.bio || 'Passionate about creating amazing digital experiences.';
+        document.getElementById('modalImage').src = member.image_url || '/images/default-avatar.png';
+        document.getElementById('modalProjects').textContent = member.projects_count || '0';
+        document.getElementById('modalSatisfaction').textContent = (member.satisfaction_rate || 0) + '%';
+        document.getElementById('modalRating').textContent = member.rating || '0';
+        document.getElementById('modalExperience').textContent = (member.experience_years || 0) + ' Years';
+
+          // ✅ Portfolio বাটন কন্ট্রোল
+        const portfolioBtn = document.querySelector('.btn-portfolio');
+        if (member.portfolio_url && member.portfolio_url.trim() !== '') {
+            portfolioBtn.style.display = 'flex';
+            portfolioBtn.onclick = function() {
+                window.open(member.portfolio_url, '_blank');
+            };
+        } else {
+            portfolioBtn.style.display = 'none';
+        }
+
+           // ✅ Contact বাটন - ফর্মে অটোফিল
+        const contactBtn = document.querySelector('.btn-contact');
+        contactBtn.onclick = function() {
+            // Contact ফর্মে নাম অটোফিল
+            const nameInput = document.getElementById('contactName');
+            const messageInput = document.getElementById('contactMessage');
+            
+            if (nameInput) {
+                nameInput.value = member.name;
+            }
+            if (messageInput) {
+                messageInput.value = `Hi ${member.name},\n\nI'm interested in working with you...`;
+            }
+            
+            // Contact সেকশনে স্ক্রল
+            document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+            closeMemberModal();
+        };
+        // Skills
+        const skillsContainer = document.getElementById('modalSkills');
+        if (member.skills && member.skills.length > 0) {
+            skillsContainer.innerHTML = member.skills.map(s => `<span>${s}</span>`).join('');
+        } else {
+            skillsContainer.innerHTML = '<span style="color:#6b7280;font-size:13px;">No skills listed</span>';
+        }
+
+        // Social Links
+        const socialLinks = {
+            linkedin: document.getElementById('modalLinkedin'),
+            github: document.getElementById('modalGithub'),
+            twitter: document.getElementById('modalTwitter'),
+            dribbble: document.getElementById('modalDribbble'),
+            behance: document.getElementById('modalBehance')
+        };
+
+        // Show/hide and set URLs
+        Object.keys(socialLinks).forEach(key => {
+            const url = member[`social_${key}`];
+            if (url) {
+                socialLinks[key].href = url;
+                socialLinks[key].classList.remove('hidden');
+            } else {
+                socialLinks[key].classList.add('hidden');
+            }
+        });
+
+        // Show modal
+        document.getElementById('memberModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+    } catch (error) {
+        console.error('Error loading member details:', error);
+        alert('❌ Could not load member details: ' + error.message);
+    }
+}
+
+// ============================================================
+// ❌ CLOSE MODAL
+// ============================================================
+
+function closeMemberModal() {
+    document.getElementById('memberModal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Close on overlay click
+document.getElementById('memberModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeMemberModal();
+    }
+});
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMemberModal();
+    }
+});
+
+// ============================================================
+// 📧 CONTACT MEMBER
+// ============================================================
+
+function contactMember() {
+    if (!currentMember) return;
+    // Redirect to contact page with member name
+    window.location.href = `/#contact?member=${encodeURIComponent(currentMember.name)}`;
+}
+
+// ============================================================
+// 💼 VIEW PORTFOLIO
+// ============================================================
+
+function viewPortfolio() {
+    if (!currentMember) return;
+    // You can add portfolio URL or open a new page
+    alert(`View ${currentMember.name}'s portfolio coming soon!`);
+    // window.open(`/portfolio/${currentMember.id}`, '_blank');
+}
+
+
+// ============================================================
+// 👥 TEAM SECTION - SCROLL ANIMATION
+// ============================================================
+
+// Intersection Observer for scroll animations
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.team-card');
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, index) => {
+            if (entry.isIntersecting) {
+                // Add animation class with delay
+                setTimeout(() => {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }, index * 100);
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+    
+    cards.forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        observer.observe(card);
+    });
+});
+
+/* =========================================================
+   TYPEWRITER EFFECT - ONLY FOR "Creative Developer"
+========================================================= */
+
+(function() {
+    'use strict';
+    
+    const CONFIG = {
+        typingSpeed: 100,
+        deletingSpeed: 50,
+        pauseBeforeDelete: 2500,
+        pauseBeforeNext: 500,
+        startDelay: 800,
+        titles: [
+            'Creative Developer',
+            'UI/UX Designer',
+            'Full-Stack Developer',
+            'fluent speaker'
+        ]
+    };
+    
+    const element = document.getElementById('dynamicTitle');
+    let currentIndex = 0;
+    let isDeleting = false;
+    let currentText = '';
+    let timerId = null;
+    
+    // ✅ Set fixed width to prevent layout shift
+    function setFixedWidth() {
+        if (!element) return;
+        const maxLength = Math.max(...CONFIG.titles.map(t => t.length));
+        element.style.minWidth = (maxLength * 0.8) + 'ch';
+        element.style.display = 'inline-block';
+        element.style.whiteSpace = 'nowrap';
+        element.style.minHeight = '1.2em';
+    }
+    
+    function typeWriter() {
+        if (!element) return;
+        
+        const fullText = CONFIG.titles[currentIndex];
+        
+        if (!isDeleting) {
+            // Typing forward
+            if (currentText.length < fullText.length) {
+                currentText = fullText.substring(0, currentText.length + 1);
+                element.textContent = currentText;
+                timerId = setTimeout(typeWriter, CONFIG.typingSpeed);
+            } else {
+                // Done typing - wait then delete
+                isDeleting = true;
+                timerId = setTimeout(typeWriter, CONFIG.pauseBeforeDelete);
+            }
+        } else {
+            // Deleting backward
+            if (currentText.length > 0) {
+                currentText = currentText.substring(0, currentText.length - 1);
+                element.textContent = currentText;
+                timerId = setTimeout(typeWriter, CONFIG.deletingSpeed);
+            } else {
+                // Done deleting - move to next title
+                isDeleting = false;
+                currentIndex = (currentIndex + 1) % CONFIG.titles.length;
+                timerId = setTimeout(typeWriter, CONFIG.pauseBeforeNext);
+            }
+        }
+    }
+    
+    function startTypewriter() {
+        if (!element) {
+            console.warn('⚠️ Typewriter element not found');
+            return;
+        }
+        
+        if (timerId) clearTimeout(timerId);
+        
+        setFixedWidth();
+        
+        currentIndex = 0;
+        isDeleting = false;
+        currentText = '';
+        element.textContent = '';
+        
+        timerId = setTimeout(typeWriter, 500);
+    }
+    
+    // ✅ Initialize
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(startTypewriter, CONFIG.startDelay);
+        });
+    } else {
+        setTimeout(startTypewriter, CONFIG.startDelay);
+    }
+    
+    // ✅ Expose for debugging
+    window.typewriter = {
+        start: startTypewriter,
+        stop: () => { if (timerId) clearTimeout(timerId); },
+        reset: () => {
+            if (timerId) clearTimeout(timerId);
+            currentText = '';
+            element.textContent = '';
+            currentIndex = 0;
+            isDeleting = false;
+            setTimeout(startTypewriter, 500);
+        }
+    };
+    
+    console.log('✅ Typewriter (Only for title) initialized!');
+    
+})();
+
+// ============================================================
+// ✅ INIT - FRONTEND
+// ============================================================
+
+// Load projects when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadProjectsFrontend('all');
+
+    // Search on Enter key
+    const searchInput = document.getElementById('projectSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                filterProjectsFrontend();
+            }
+        });
+    }
+});
 /* =========================================================
    START - Load Everything
 ========================================================= */
@@ -1493,6 +2332,13 @@ if (document.getElementById('disciplineStats')) {
     loadDisciplinePublic();
 }
 
+// ============================================================
+// ✅ INIT - Load team when page loads
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTeamMembers();
+});
 console.log('🚀 My Resume Portfolio - All systems ready!');
 console.log('📊 Analytics tracking enabled');
 console.log('💀 Skeleton screens enabled');

@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Team | Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f7f9;
+            color: #1f2937;
+        }
+
+        .navbar {
+            height: 70px;
+            background: #005f5f;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar h1 {
+            font-size: 21px;
+            font-weight: 700;
+        }
+
+        .back-btn, .logout-btn {
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: transparent;
+            color: white;
+            padding: 9px 16px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .back-btn:hover, .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h2 {
+            font-size: 28px;
+            color: #1f2937;
+        }
+
+        .header p {
+            color: #6b7280;
+        }
+
+        .form-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.04);
+        }
+
+        .form-card h3 {
+            margin-bottom: 20px;
+            font-size: 22px;
+            color: #005f5f;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 7px;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.3s;
+            background: #fafbfc;
+            color: #1f2937;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #005f5f;
+            box-shadow: 0 0 0 3px rgba(0, 95, 95, 0.12);
+            background: white;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        /* ============================================================
+           📤 CLOUDINARY UPLOAD
+        ============================================================ */
+
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: #fafbfc;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: #005f5f;
+            background: #f0f7f7;
+        }
+
+        .upload-area.dragover {
+            border-color: #005f5f;
+            background: #e5f0ff;
+        }
+
+        .upload-area .upload-icon {
+            font-size: 48px;
+            color: #005f5f;
+            margin-bottom: 10px;
+        }
+
+        .upload-area p {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .upload-area .upload-hint {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 5px;
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-progress {
+            display: none;
+            margin-top: 15px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .upload-progress .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #005f5f, #0a7a7a);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .upload-status {
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .upload-status.success {
+            display: block;
+            color: #10b981;
+        }
+
+        .upload-status.error {
+            display: block;
+            color: #dc2626;
+        }
+
+        .upload-status.loading {
+            display: block;
+            color: #005f5f;
+        }
+
+        .image-preview-container {
+            margin-top: 15px;
+            display: none;
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-preview-container img {
+            max-width: 150px;
+            max-height: 150px;
+            border-radius: 12px;
+            border: 2px solid #e5e7eb;
+            object-fit: cover;
+        }
+
+        .image-preview-container .remove-image {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .image-preview-container .remove-image:hover {
+            transform: scale(1.1);
+        }
+
+        /* ============================================================
+           🏷️ SKILLS
+        ============================================================ */
+
+        .skills-input-wrapper {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .skills-input-wrapper input {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .add-skill-btn {
+            padding: 12px 20px;
+            background: #005f5f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .add-skill-btn:hover {
+            background: #004a4a;
+        }
+
+        .skills-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .skill-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #1f2937;
+        }
+
+        .skill-tag .remove-skill {
+            cursor: pointer;
+            color: #6b7280;
+            font-weight: 700;
+            transition: color 0.3s;
+        }
+
+        .skill-tag .remove-skill:hover {
+            color: #dc2626;
+        }
+
+        .save-btn {
+            background: #005f5f;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .save-btn:hover {
+            background: #004a4a;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 95, 95, 0.25);
+        }
+
+        .save-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cancel-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .cancel-btn:hover {
+            background: #4b5563;
+        }
+
+        #message {
+            margin-top: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+
+        #message.success {
+            display: block;
+            background: #e7f7ef;
+            color: #147a43;
+            border: 1px solid #a7e0b8;
+        }
+
+        #message.error {
+            display: block;
+            background: #fdecec;
+            color: #b42318;
+            border: 1px solid #f5c6c6;
+        }
+
+        .items-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .item-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            transition: all 0.3s;
+        }
+
+        .item-card:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .item-card.inactive {
+            opacity: 0.6;
+            border-left: 4px solid #6b7280;
+        }
+
+        .item-content {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .item-content .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e5e7eb;
+        }
+
+        .item-content .info h3 {
+            font-size: 18px;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+
+        .item-content .info .role {
+            font-size: 13px;
+            color: #005f5f;
+            font-weight: 600;
+        }
+
+        .item-content .info .meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .edit-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .edit-btn:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .delete-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .toggle-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .toggle-btn.active {
+            background: #10b981;
+            color: white;
+        }
+
+        .toggle-btn.inactive {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .toggle-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .loading {
+            color: #6b7280;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty {
+            color: #6b7280;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 15px;
+                height: auto;
+                min-height: 60px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .navbar h1 {
+                font-size: 17px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group.full {
+                grid-column: auto;
+            }
+
+            .item-card {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .item-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .item-actions {
+                justify-content: center;
+            }
+
+            .header h2 {
+                font-size: 22px;
+            }
+
+            .upload-area {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 12px;
+                margin: 20px auto;
+            }
+
+            .form-card {
+                padding: 20px;
+            }
+
+            .save-btn {
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+
+            .skills-input-wrapper {
+                flex-direction: column;
+            }
+
+            .add-skill-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <h1>My Resume Portfolio — Admin</h1>
+    <div>
+        <button id="backBtn" class="back-btn">Dashboard</button>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+</nav>
+
+<main class="container">
+    <div class="header">
+        <div>
+            <h2>👥 Manage Team</h2>
+            <p>Add, edit, and manage your team members</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="form-card">
+        <h3 id="formTitle">➕ Add Team Member</h3>
+        <form id="teamForm">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="name">Full Name *</label>
+                    <input id="name" type="text" placeholder="e.g., Ishtiak Hossain" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="role">Role *</label>
+                    <input id="role" type="text" placeholder="e.g., Lead Developer" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="experience_years">Experience (Years)</label>
+                    <input id="experience_years" type="number" placeholder="5" min="0">
+                </div>
+
+                <div class="form-group full">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio" placeholder="Describe the team member's background and expertise..."></textarea>
+                </div>
+
+                <!-- ============================================================
+                     📤 CLOUDINARY IMAGE UPLOAD
+                ============================================================ -->
+                <div class="form-group full">
+                    <label>Profile Image</label>
+                    
+                    <!-- Image URL Input -->
+                    <input id="image_url" type="url" placeholder="https://res.cloudinary.com/..." style="margin-bottom:10px;">
+                    
+                    <!-- Upload Area -->
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">☁️</div>
+                        <p><strong>Click to upload</strong> or drag and drop</p>
+                        <p class="upload-hint">PNG, JPG, WEBP (Max 5MB)</p>
+                        <input type="file" id="imageUpload" accept="image/*">
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="upload-progress" id="uploadProgress">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+
+                    <!-- Status Message -->
+                    <div class="upload-status" id="uploadStatus"></div>
+
+                    <!-- Image Preview -->
+                    <div class="image-preview-container" id="imagePreviewContainer" style="display:none;">
+                        <img id="imagePreview" src="" alt="Preview">
+                        <button type="button" class="remove-image" onclick="removeImage()">×</button>
+                    </div>
+                </div>
+
+                <!-- ============================================================
+                     🏷️ SKILLS
+                ============================================================ -->
+                <div class="form-group full">
+                    <label>Skills</label>
+                    <div class="skills-input-wrapper">
+                        <input type="text" id="skillInput" placeholder="Type a skill and press Add">
+                        <button type="button" class="add-skill-btn" onclick="addSkill()">+ Add Skill</button>
+                    </div>
+                    <div class="skills-tags" id="skillsContainer"></div>
+                    <input type="hidden" id="skills" value="">
+                </div>
+
+                <!-- ============================================================
+                     SOCIAL LINKS
+                ============================================================ -->
+                <div class="form-group">
+                    <label>Social Links</label>
+                    <input id="social_linkedin" type="url" placeholder="LinkedIn URL">
+                </div>
+
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <input id="social_github" type="url" placeholder="GitHub URL">
+                </div>
+
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <input id="social_twitter" type="url" placeholder="Twitter URL">
+                </div>
+
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <input id="social_dribbble" type="url" placeholder="Dribbble URL">
+                </div>
+
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <input id="social_behance" type="url" placeholder="Behance URL">
+                </div>
+
+                <!-- ============================================================
+                     STATS
+                ============================================================ -->
+                <div class="form-group">
+                    <label for="projects_count">Projects Count</label>
+                    <input id="projects_count" type="number" placeholder="50" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="satisfaction_rate">Satisfaction Rate (%)</label>
+                    <input id="satisfaction_rate" type="number" placeholder="98" min="0" max="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="rating">Rating (out of 5)</label>
+                    <input id="rating" type="number" placeholder="4.9" min="0" max="5" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="sort_order">Sort Order</label>
+                    <input id="sort_order" type="number" value="0" min="0">
+                </div>
+
+                <div class="form-group">
+    <label for="portfolio_url">Portfolio URL</label>
+    <input id="portfolio_url" type="url" placeholder="https://example.com/portfolio">
+    <small style="color:#6b7280;font-size:12px;margin-top:4px;">
+        Optional: Add a link to this member's portfolio
+    </small>
+</div>
+                <div class="form-group">
+                    <label for="is_active">Status</label>
+                    <select id="is_active">
+                        <option value="true">🟢 Active</option>
+                        <option value="false">🔴 Inactive</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="save-btn" id="submitBtn">➕ Add Member</button>
+            <button type="button" id="cancelBtn" class="cancel-btn">✖ Cancel Edit</button>
+            <div id="message" class="message"></div>
+        </form>
+    </div>
+
+    <!-- Team List -->
+    <div id="teamList" class="items-list">
+        <div class="loading">⏳ Loading team members...</div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============================================================
+// ✅ SUPABASE CONFIG
+// ============================================================
+
+const SUPABASE_URL = 'https://baepfcdvgruhvaccruum.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_cDIynPGbHrsZjUK8gRhpDA_pu20FNiF';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let token = null;
+let editingId = null;
+let skillsList = [];
+
+// ============================================================
+// ✅ CLOUDINARY CONFIG - YOUR SETTINGS
+// ============================================================
+
+const CLOUD_NAME = "estyakproject";
+const UPLOAD_PRESET = "resume_profiles";
+
+// ============================================================
+// ✅ GET TOKEN
+// ============================================================
+
+async function getToken() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+        window.location.href = '/admin.html';
+        return null;
+    }
+    token = session.access_token;
+    return token;
+}
+
+// ============================================================
+// ✅ CLOUDINARY UPLOAD FUNCTION
+// ============================================================
+
+async function uploadToCloudinary(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+    formData.append('cloud_name', CLOUD_NAME);
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Progress tracking
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                updateProgress(percentComplete);
+            }
+        });
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.secure_url) {
+                        resolve(response.secure_url);
+                    } else {
+                        reject(new Error('Upload failed: No secure_url in response'));
+                    }
+                } catch (e) {
+                    reject(new Error('Invalid response from Cloudinary'));
+                }
+            } else {
+                reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+        };
+
+        xhr.onerror = function() {
+            reject(new Error('Network error during upload'));
+        };
+
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`);
+        xhr.send(formData);
+    });
+}
+
+// ============================================================
+// ✅ PROGRESS BAR UPDATE
+// ============================================================
+
+function updateProgress(percent) {
+    const progressContainer = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    
+    progressContainer.style.display = 'block';
+    progressBar.style.width = percent + '%';
+    
+    if (percent >= 100) {
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+        }, 1000);
+    }
+}
+
+// ============================================================
+// ✅ IMAGE UPLOAD HANDLER
+// ============================================================
+
+document.getElementById('imageUpload').addEventListener('change', async function(e) {
+    const file = this.files[0];
+    if (!file) return;
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+        showUploadStatus('❌ File is too large. Maximum size is 5MB.', 'error');
+        this.value = '';
+        return;
+    }
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+        showUploadStatus('❌ Please upload a valid image (JPG, PNG, WEBP, GIF)', 'error');
+        this.value = '';
+        return;
+    }
+
+    const status = document.getElementById('uploadStatus');
+    const urlInput = document.getElementById('image_url');
+    
+    showUploadStatus('⏳ Uploading to Cloudinary...', 'loading');
+
+    try {
+        const imageUrl = await uploadToCloudinary(file);
+        
+        // Update form
+        urlInput.value = imageUrl;
+        showUploadStatus('✅ Image uploaded successfully!', 'success');
+        
+        // Show preview
+        showImagePreview(imageUrl);
+        
+        // Reset file input
+        this.value = '';
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        showUploadStatus('❌ Upload failed: ' + error.message, 'error');
+        this.value = '';
+    }
+});
+
+// ============================================================
+// ✅ UPLOAD STATUS HELPER
+// ============================================================
+
+function showUploadStatus(message, type) {
+    const status = document.getElementById('uploadStatus');
+    status.textContent = message;
+    status.className = 'upload-status ' + type;
+    status.style.display = 'block';
+}
+
+// ============================================================
+// ✅ IMAGE PREVIEW
+// ============================================================
+
+function showImagePreview(url) {
+    const container = document.getElementById('imagePreviewContainer');
+    const img = document.getElementById('imagePreview');
+    
+    img.src = url;
+    container.style.display = 'inline-block';
+}
+
+function removeImage() {
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+    document.getElementById('imagePreview').src = '';
+    document.getElementById('image_url').value = '';
+    document.getElementById('imageUpload').value = '';
+    document.getElementById('uploadStatus').style.display = 'none';
+}
+
+// ============================================================
+// ✅ DRAG AND DROP SUPPORT
+// ============================================================
+
+const uploadArea = document.getElementById('uploadArea');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        document.getElementById('imageUpload').files = files;
+        document.getElementById('imageUpload').dispatchEvent(new Event('change'));
+    }
+});
+
+// ============================================================
+// ✅ SKILLS MANAGEMENT
+// ============================================================
+
+function addSkill() {
+    const input = document.getElementById('skillInput');
+    const skill = input.value.trim();
+    
+    if (!skill) return;
+    if (skillsList.includes(skill)) {
+        alert('⚠️ Skill already added!');
+        return;
+    }
+
+    skillsList.push(skill);
+    renderSkills();
+    input.value = '';
+    input.focus();
+}
+
+function removeSkill(index) {
+    skillsList.splice(index, 1);
+    renderSkills();
+}
+
+function renderSkills() {
+    const container = document.getElementById('skillsContainer');
+    const hidden = document.getElementById('skills');
+    
+    container.innerHTML = skillsList.map((skill, index) => `
+        <span class="skill-tag">
+            ${skill}
+            <span class="remove-skill" onclick="removeSkill(${index})">×</span>
+        </span>
+    `).join('');
+    
+    hidden.value = skillsList.join(',');
+}
+
+// Enter key for skills
+document.getElementById('skillInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addSkill();
+    }
+});
+
+// ============================================================
+// ✅ LOAD TEAM MEMBERS
+// ============================================================
+
+async function loadTeam() {
+    const container = document.getElementById('teamList');
+    container.innerHTML = '<div class="loading">⏳ Loading team members...</div>';
+
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch('/api/admin/team', {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const members = result.data || [];
+        renderTeam(members);
+
+    } catch (error) {
+        container.innerHTML = `
+            <div class="empty" style="color:#dc2626;">
+                <div class="icon">❌</div>
+                <p>${error.message}</p>
+                <button onclick="loadTeam()" style="margin-top:10px;padding:8px 20px;background:#005f5f;color:white;border:none;border-radius:6px;cursor:pointer;">
+                    Retry
+                </button>
+            </div>
+        `;
+    }
+}
+
+// ============================================================
+// ✅ RENDER TEAM
+// ============================================================
+
+function renderTeam(members) {
+    const container = document.getElementById('teamList');
+
+    if (members.length === 0) {
+        container.innerHTML = `
+            <div class="empty">
+                <div class="icon">👥</div>
+                <p style="font-size:18px;font-weight:600;">No team members yet</p>
+                <p style="font-size:14px;margin-top:5px;">Add your first team member using the form above.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = members.map(m => `
+        <div class="item-card ${!m.is_active ? 'inactive' : ''}">
+            <div class="item-content">
+                ${m.image_url ? `<img src="${m.image_url}" alt="${m.name}" class="avatar" onerror="this.style.display='none'">` : 
+                `<div class="avatar" style="background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:24px;">👤</div>`}
+                <div class="info">
+                    <h3>${m.name}</h3>
+                    <div class="role">${m.role}</div>
+                    <div class="meta">
+                        ${m.experience_years ? `⭐ ${m.experience_years} years • ` : ''}
+                        ${m.projects_count ? `📊 ${m.projects_count} projects • ` : ''}
+                        ${m.rating ? `⭐ ${m.rating}/5` : ''}
+                        ${!m.is_active ? ' • 🔴 Inactive' : ''}
+                    </div>
+                    ${m.skills && m.skills.length > 0 ? `
+                        <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">
+                            ${m.skills.map(s => `<span style="background:#f3f4f6;padding:1px 10px;border-radius:12px;font-size:11px;color:#4b5563;">${s}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="item-actions">
+                <button class="toggle-btn ${m.is_active ? 'active' : 'inactive'}" onclick="toggleStatus('${m.id}', ${!m.is_active})">
+                    ${m.is_active ? '🟢 Active' : '🔴 Inactive'}
+                </button>
+                <button class="edit-btn" onclick="editMember('${m.id}')">✏️ Edit</button>
+                <button class="delete-btn" onclick="deleteMember('${m.id}')">🗑️ Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// ✅ TOGGLE STATUS
+// ============================================================
+
+async function toggleStatus(id, newStatus) {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch(`/api/admin/team/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${t}`
+            },
+            body: JSON.stringify({ is_active: newStatus })
+        });
+
+        if (!response.ok) throw new Error('Could not update status');
+
+        showMessage('✅ Status updated successfully!', 'success');
+        loadTeam();
+
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// ✅ ADD / UPDATE MEMBER
+// ============================================================
+
+document.getElementById('teamForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const t = await getToken();
+    if (!t) return;
+
+    const btn = document.getElementById('submitBtn');
+    const msg = document.getElementById('message');
+
+    const name = document.getElementById('name').value.trim();
+    const role = document.getElementById('role').value.trim();
+
+    if (!name || !role) {
+        showMessage('⚠️ Name and role are required.', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Saving...';
+    msg.style.display = 'none';
+
+    const data = {
+        name,
+        role,
+        bio: document.getElementById('bio').value.trim(),
+        image_url: document.getElementById('image_url').value.trim(),
+        skills: skillsList,
+        social_linkedin: document.getElementById('social_linkedin').value.trim(),
+        social_github: document.getElementById('social_github').value.trim(),
+        social_twitter: document.getElementById('social_twitter').value.trim(),
+        social_dribbble: document.getElementById('social_dribbble').value.trim(),
+        social_behance: document.getElementById('social_behance').value.trim(),
+         portfolio_url: document.getElementById('portfolio_url').value.trim(),
+        experience_years: parseInt(document.getElementById('experience_years').value) || 0,
+        projects_count: parseInt(document.getElementById('projects_count').value) || 0,
+        satisfaction_rate: parseInt(document.getElementById('satisfaction_rate').value) || 0,
+        rating: parseFloat(document.getElementById('rating').value) || 0,
+        sort_order: parseInt(document.getElementById('sort_order').value) || 0,
+        is_active: document.getElementById('is_active').value === 'true'
+    };
+
+    try {
+        let url = '/api/admin/team';
+        let method = 'POST';
+
+        if (editingId) {
+            url = `/api/admin/team/${editingId}`;
+            method = 'PUT';
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${t}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        showMessage(editingId ? '✅ Team member updated successfully!' : '✅ Team member added successfully!', 'success');
+        resetForm();
+        loadTeam();
+
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = editingId ? '🔄 Update Member' : '➕ Add Member';
+});
+
+// ============================================================
+// ✅ EDIT MEMBER
+// ============================================================
+
+async function editMember(id) {
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch(`/api/team/${id}`, {
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.message);
+
+        const m = result.data;
+        editingId = m.id;
+
+        document.getElementById('name').value = m.name;
+        document.getElementById('role').value = m.role;
+        document.getElementById('bio').value = m.bio || '';
+        document.getElementById('image_url').value = m.image_url || '';
+            document.getElementById('portfolio_url').value = m.portfolio_url || '';
+
+        document.getElementById('experience_years').value = m.experience_years || 0;
+        document.getElementById('projects_count').value = m.projects_count || 0;
+        document.getElementById('satisfaction_rate').value = m.satisfaction_rate || 0;
+        document.getElementById('rating').value = m.rating || 0;
+        document.getElementById('sort_order').value = m.sort_order || 0;
+        document.getElementById('is_active').value = m.is_active ? 'true' : 'false';
+
+        // Skills
+        skillsList = m.skills || [];
+        renderSkills();
+
+        // Social Links
+        document.getElementById('social_linkedin').value = m.social_linkedin || '';
+        document.getElementById('social_github').value = m.social_github || '';
+        document.getElementById('social_twitter').value = m.social_twitter || '';
+        document.getElementById('social_dribbble').value = m.social_dribbble || '';
+        document.getElementById('social_behance').value = m.social_behance || '';
+
+        // Image Preview
+        if (m.image_url) {
+            showImagePreview(m.image_url);
+        }
+
+        document.getElementById('formTitle').textContent = '✏️ Edit Team Member';
+        document.getElementById('submitBtn').textContent = '🔄 Update Member';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        document.getElementById('cancelBtn').onclick = resetForm;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// ✅ DELETE MEMBER
+// ============================================================
+
+async function deleteMember(id) {
+    if (!confirm('Are you sure you want to delete this team member?')) return;
+
+    const t = await getToken();
+    if (!t) return;
+
+    try {
+        const response = await fetch(`/api/admin/team/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${t}` }
+        });
+
+        if (!response.ok) throw new Error('Could not delete');
+
+        showMessage('✅ Team member deleted successfully!', 'success');
+        loadTeam();
+
+    } catch (error) {
+        showMessage('❌ ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// ✅ RESET FORM
+// ============================================================
+
+function resetForm() {
+    document.getElementById('teamForm').reset();
+    document.getElementById('sort_order').value = '0';
+    document.getElementById('is_active').value = 'true';
+        document.getElementById('portfolio_url').value = '';
+
+    removeImage();
+    skillsList = [];
+    renderSkills();
+    document.getElementById('formTitle').textContent = '➕ Add Team Member';
+    document.getElementById('submitBtn').textContent = '➕ Add Member';
+    document.getElementById('cancelBtn').style.display = 'none';
+    editingId = null;
+    document.getElementById('uploadStatus').style.display = 'none';
+}
+
+// ============================================================
+// ✅ SHOW MESSAGE
+// ============================================================
+
+function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.textContent = text;
+    msg.className = type;
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 5000);
+}
+
+// ============================================================
+// ✅ LOGOUT & BACK
+// ============================================================
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.href = '/admin.html';
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = '/admin-dashboard.html';
+});
+
+// ============================================================
+// ✅ INIT
+// ============================================================
+
+getToken().then(() => {
+    loadTeam();
+});
+</script>
+</body>
+</html>

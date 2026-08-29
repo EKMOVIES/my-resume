@@ -1,12 +1,16 @@
 require('dotenv').config();
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-console.log('🌐 BASE_URL:', BASE_URL);
-
 const express = require('express');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const pdf = require('html-pdf');
+
+// ============================================================
+// 🌐 BASE URL CONFIGURATION - FIXED
+// ============================================================
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+console.log('🌐 BASE_URL:', BASE_URL);
+console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
 
 // Nodemailer - optional
 let nodemailer;
@@ -17,12 +21,6 @@ try {
     console.warn('⚠️ Nodemailer not installed. Email notifications disabled.');
     nodemailer = null;
 }
-const SSLCommerz = require('sslcommerz-lts');
-
-// SSLCommerz Config
-const store_id = process.env.STORE_ID || 'myres6a8f1c4131455';
-const store_passwd = process.env.STORE_PASSWORD || '0987654321';
-const is_live = false;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -186,13 +184,11 @@ async function extractClientIdFromToken(token) {
 
     console.log('🔍 Extracting client ID from token:', token.substring(0, 30) + '...');
 
-    // Method 1: Check if it's a temp token (temp_timestamp)
     if (token.startsWith('temp_')) {
-        console.log('⚠️ Temp token detected, trying to find client from localStorage...');
+        console.log('⚠️ Temp token detected');
         return null;
     }
 
-    // Method 2: Try Supabase auth
     try {
         const { data: { user }, error: userError } = await supabase.auth.getUser(token);
         if (!userError && user) {
@@ -212,7 +208,6 @@ async function extractClientIdFromToken(token) {
         console.warn('Supabase auth failed:', e.message);
     }
 
-    // Method 3: Legacy token decode (base64)
     try {
         const decoded = Buffer.from(token, 'base64').toString('utf-8');
         console.log('📝 Decoded token:', decoded);
@@ -225,11 +220,8 @@ async function extractClientIdFromToken(token) {
                 return id;
             }
         }
-    } catch (e) {
-        // Continue
-    }
+    } catch (e) {}
 
-    // Method 4: Check if token itself is a UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(token)) {
         console.log('✅ Token is a valid UUID:', token);
@@ -247,7 +239,8 @@ async function extractClientIdFromToken(token) {
 app.get('/api/health', (req, res) => {
     res.json({
         success: true,
-        message: 'My Resume Portfolio API is running.'
+        message: 'My Resume Portfolio API is running.',
+        base_url: BASE_URL
     });
 });
 
@@ -321,17 +314,20 @@ app.get('/api/profile', requireAuth, async (req, res) => {
 app.post('/api/profile', requireAuth, async (req, res) => {
     try {
         const {
-            name, title, bio, email, phone, location,
+            name, title, bio, about_bio, email, phone, location,
             profile_image, resume_url, facebook_url,
-            linkedin_url, github_url
+            linkedin_url, github_url, stat_projects, stat_clients, stat_experience
         } = req.body;
 
         const { data, error } = await supabase
             .from('profile')
             .insert({
-                name, title, bio, email, phone, location,
+                name, title, bio, about_bio, email, phone, location,
                 profile_image, resume_url, facebook_url,
-                linkedin_url, github_url
+                linkedin_url, github_url,
+                stat_projects: stat_projects || 0,
+                stat_clients: stat_clients || 0,
+                stat_experience: stat_experience || 0
             })
             .select()
             .single();
@@ -363,17 +359,20 @@ app.put('/api/profile/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const {
-            name, title, bio, email, phone, location,
+            name, title, bio, about_bio, email, phone, location,
             profile_image, resume_url, facebook_url,
-            linkedin_url, github_url
+            linkedin_url, github_url,stat_projects, stat_clients, stat_experience
         } = req.body;
 
         const { data, error } = await supabase
             .from('profile')
             .update({
-                name, title, bio, email, phone, location,
+                name, title, bio, about_bio, email, phone, location,
                 profile_image, resume_url, facebook_url,
-                linkedin_url, github_url,
+                linkedin_url, github_url,  
+                stat_projects: stat_projects || 0,
+                stat_clients: stat_clients || 0,
+                stat_experience: stat_experience || 0,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -1002,12 +1001,26 @@ app.delete('/api/services/:id', requireAuth, async (req, res) => {
    PROJECTS API
 ========================================================= */
 
+// ✅ Projects API with category filter
+/* =========================================================
+   PROJECTS API
+========================================================= */
+
+// ✅ Get all projects (with optional category filter)
 app.get('/api/projects', async (req, res) => {
     try {
-        const { data, error } = await supabase
+        const { category } = req.query;
+        
+        let query = supabase
             .from('projects')
             .select('*')
             .order('sort_order', { ascending: true });
+
+        if (category && category !== 'all') {
+            query = query.eq('category', category);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Projects load error:', error);
@@ -1028,19 +1041,68 @@ app.get('/api/projects', async (req, res) => {
     }
 });
 
+// ✅ Get single project by ID
+app.get('/api/projects/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Project load error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load project.',
+                error: error.message
+            });
+        }
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found.'
+            });
+        }
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Project GET server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Create project
 app.post('/api/projects', requireAuth, async (req, res) => {
     try {
-        const { title, description, image_url, technologies, live_url, github_url, sort_order } = req.body;
+        const { 
+            title, description, image_url, technologies, 
+            live_url, github_url, sort_order, category 
+        } = req.body;
+
+        if (!title || !description) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title and description are required.'
+            });
+        }
 
         const { data, error } = await supabase
             .from('projects')
             .insert({
                 title,
                 description,
-                image_url,
-                technologies,
-                live_url,
-                github_url,
+                image_url: image_url || '',
+                technologies: technologies || '',
+                live_url: live_url || '',
+                github_url: github_url || '',
+                category: category || 'website',
                 sort_order: sort_order || 0
             })
             .select()
@@ -1069,20 +1131,25 @@ app.post('/api/projects', requireAuth, async (req, res) => {
     }
 });
 
+// ✅ Update project
 app.put('/api/projects/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, image_url, technologies, live_url, github_url, sort_order } = req.body;
+        const { 
+            title, description, image_url, technologies, 
+            live_url, github_url, sort_order, category 
+        } = req.body;
 
         const { data, error } = await supabase
             .from('projects')
             .update({
                 title,
                 description,
-                image_url,
-                technologies,
-                live_url,
-                github_url,
+                image_url: image_url || '',
+                technologies: technologies || '',
+                live_url: live_url || '',
+                github_url: github_url || '',
+                category: category || 'website',
                 sort_order: sort_order || 0,
                 updated_at: new Date().toISOString()
             })
@@ -1113,9 +1180,11 @@ app.put('/api/projects/:id', requireAuth, async (req, res) => {
     }
 });
 
+// ✅ Delete project
 app.delete('/api/projects/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
+
         const { error } = await supabase
             .from('projects')
             .delete()
@@ -2299,7 +2368,7 @@ app.post('/api/client/signup', async (req, res) => {
                     <p><strong>Email:</strong> ${email}</p>
                     <p><strong>Company:</strong> ${company || 'N/A'}</p>
                     <p><strong>Phone:</strong> ${phone || 'N/A'}</p>
-                    <p><a href="/admin-clients.html">Approve or Reject</a></p>
+                    <p><a href="${BASE_URL}/admin-clients.html">Approve or Reject</a></p>
                 `
             });
         } catch (emailError) {
@@ -2869,7 +2938,7 @@ app.put('/api/admin/clients/:id/approve', requireAuth, async (req, res) => {
                     <h2>Congratulations ${client.name}!</h2>
                     <p>Your account has been approved by the admin.</p>
                     <p>You can now login to access your portal:</p>
-                    <p><a href="/client-login.html">Login Here</a></p>
+                    <p><a href="${BASE_URL}/client-login.html">Login Here</a></p>
                     <p>Email: ${client.email}</p>
                 `
             });
@@ -3187,9 +3256,10 @@ app.put('/api/admin/chat/mark-read/:client_id', requireAuth, async (req, res) =>
 });
 
 /* =========================================================
-   📢 NOTIFICATIONS API
+   📢 NOTIFICATIONS API - COMPLETE
 ========================================================= */
 
+// ✅ Get customer notifications
 app.get('/api/notifications', async (req, res) => {
     try {
         const email = req.query.email;
@@ -3225,6 +3295,7 @@ app.get('/api/notifications', async (req, res) => {
     }
 });
 
+// ✅ Mark notification as read
 app.put('/api/notifications/:id/read', async (req, res) => {
     try {
         const { id } = req.params;
@@ -3257,6 +3328,7 @@ app.put('/api/notifications/:id/read', async (req, res) => {
     }
 });
 
+// ✅ Create notification
 app.post('/api/notifications', async (req, res) => {
     try {
         const { customer_email, customer_name, message, notification_type, title, action_url } = req.body;
@@ -3300,11 +3372,6 @@ app.post('/api/notifications', async (req, res) => {
     }
 });
 
-
-/* =========================================================
-   📢 ADMIN NOTIFICATIONS API
-========================================================= */
-
 // ✅ Admin - Send notification to clients
 app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
     try {
@@ -3317,7 +3384,6 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
             });
         }
 
-        // ✅ Create notification record
         const { data: notification, error } = await supabase
             .from('admin_notifications')
             .insert({
@@ -3341,7 +3407,6 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
             });
         }
 
-        // ✅ Get target clients
         let clients = [];
         if (target_type === 'all') {
             const { data: allClients, error: allError } = await supabase
@@ -3349,9 +3414,7 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
                 .select('id, name, email')
                 .eq('status', 'approved');
             
-            if (allError) {
-                console.error('Get clients error:', allError);
-            } else {
+            if (!allError) {
                 clients = allClients || [];
             }
         } else if (target_type === 'specific' && target_clients && target_clients.length > 0) {
@@ -3361,14 +3424,11 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
                 .in('id', target_clients)
                 .eq('status', 'approved');
             
-            if (specificError) {
-                console.error('Get specific clients error:', specificError);
-            } else {
+            if (!specificError) {
                 clients = specificClients || [];
             }
         }
 
-        // ✅ Create notifications for each client
         let sentCount = 0;
         for (const client of clients) {
             const { error: notifError } = await supabase
@@ -3380,7 +3440,7 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
                     message: message,
                     notification_type: notification_type || 'announcement',
                     title: title,
-                    action_url: '/client-notifications.html',
+                    action_url: `${BASE_URL}/client-notifications.html`,
                     is_broadcast: true,
                     status: 'unread',
                     created_at: new Date().toISOString()
@@ -3391,7 +3451,6 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
             }
         }
 
-        // ✅ Update sent_at
         await supabase
             .from('admin_notifications')
             .update({ 
@@ -3420,7 +3479,7 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Get all notifications (with pagination)
+// ✅ Admin - Get all notifications
 app.get('/api/admin/notifications', requireAuth, async (req, res) => {
     try {
         const { limit = 50, offset = 0 } = req.query;
@@ -3440,14 +3499,9 @@ app.get('/api/admin/notifications', requireAuth, async (req, res) => {
             });
         }
 
-        // Get total count
         const { count, error: countError } = await supabase
             .from('admin_notifications')
             .select('*', { count: 'exact', head: true });
-
-        if (countError) {
-            console.error('Count error:', countError);
-        }
 
         res.json({
             success: true,
@@ -3465,81 +3519,6 @@ app.get('/api/admin/notifications', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Get single notification
-app.get('/api/admin/notifications/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { data, error } = await supabase
-            .from('admin_notifications')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) {
-            console.error('Get notification error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not load notification',
-                error: error.message
-            });
-        }
-
-        if (!data) {
-            return res.status(404).json({
-                success: false,
-                message: 'Notification not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            data: data
-        });
-
-    } catch (error) {
-        console.error('Get notification error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not load notification',
-            error: error.message
-        });
-    }
-});
-
-// ✅ Admin - Delete notification
-app.delete('/api/admin/notifications/:id', requireAuth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const { error } = await supabase
-            .from('admin_notifications')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Delete notification error:', error);
-            return res.status(500).json({
-                success: false,
-                message: 'Could not delete notification',
-                error: error.message
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Notification deleted successfully'
-        });
-
-    } catch (error) {
-        console.error('Delete notification error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Could not delete notification',
-            error: error.message
-        });
-    }
-});
 /* =========================================================
    SERVICES SALE API
 ========================================================= */
@@ -3740,7 +3719,7 @@ app.put('/api/admin/orders/:id', requireAuth, async (req, res) => {
 
             const message = `${statusEmoji[order_status] || '📦'} Order #${order.id.substring(0, 8)}: ${statusMessages[order_status] || 'Status updated'}`;
 
-            await fetch(`http://localhost:${PORT}/api/notifications`, {
+            await fetch(`${BASE_URL}/api/notifications`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -3808,7 +3787,7 @@ app.delete('/api/admin/orders/:id', requireAuth, async (req, res) => {
 });
 
 /* =========================================================
-   PAYMENT API
+   💳 PAYMENT API - FIXED WITH BASE_URL
 ========================================================= */
 
 app.post('/api/payment/initiate', async (req, res) => {
@@ -3816,6 +3795,8 @@ app.post('/api/payment/initiate', async (req, res) => {
         const { order_id, customer_name, customer_email, amount } = req.body;
         
         console.log('💰 Payment Request:', { order_id, customer_name, customer_email, amount });
+        console.log('🌐 BASE_URL:', BASE_URL);
+        console.log('🔗 Redirect URL:', `${BASE_URL}/payment-success.html?order=${order_id}&test=true`);
 
         if (!order_id || !customer_name || !customer_email) {
             return res.status(400).json({
@@ -3832,7 +3813,7 @@ app.post('/api/payment/initiate', async (req, res) => {
             })
             .eq('id', order_id);
 
-          return res.json({
+        return res.json({
             success: true,
             redirect_url: `${BASE_URL}/payment-success.html?order=${order_id}&test=true`
         });
@@ -3846,6 +3827,326 @@ app.post('/api/payment/initiate', async (req, res) => {
     }
 });
 
+app.post('/api/payment/success', async (req, res) => {
+    try {
+        const { tran_id, value_a, value_b, status } = req.body;
+        console.log('✅ Payment Success:', { tran_id, value_a, value_b });
+
+        await supabase
+            .from('orders')
+            .update({
+                payment_status: 'completed',
+                order_status: 'processing'
+            })
+            .eq('id', value_a);
+
+        try {
+            await sendClientEmail({
+                to: value_b,
+                subject: '✅ Payment Successful!',
+                html: `
+                    <h2>Payment Successful!</h2>
+                    <p>Thank you for your purchase.</p>
+                    <p>Order ID: ${tran_id}</p>
+                    <p>We will contact you within 24 hours.</p>
+                    <p><a href="${BASE_URL}/client-dashboard.html">View Dashboard</a></p>
+                `
+            });
+        } catch (e) {
+            console.warn('Email error:', e.message);
+        }
+
+        res.redirect(`${BASE_URL}/payment-success.html?order=${value_a}`);
+
+    } catch (error) {
+        console.error('Payment success error:', error);
+        res.redirect(`${BASE_URL}/payment-fail.html`);
+    }
+});
+
+app.post('/api/payment/fail', async (req, res) => {
+    try {
+        const { tran_id, value_a } = req.body;
+        console.log('❌ Payment Failed:', { tran_id, value_a });
+
+        await supabase
+            .from('orders')
+            .update({
+                payment_status: 'cancelled',
+                order_status: 'cancelled'
+            })
+            .eq('id', value_a);
+
+        res.redirect(`${BASE_URL}/payment-fail.html`);
+
+    } catch (error) {
+        console.error('Payment fail error:', error);
+        res.redirect(`${BASE_URL}/payment-fail.html`);
+    }
+});
+
+app.post('/api/payment/cancel', async (req, res) => {
+    console.log('🔄 Payment Cancelled');
+    res.redirect(`${BASE_URL}/#services-sale`);
+});
+
+/* =========================================================
+   👥 TEAM MEMBERS API
+========================================================= */
+
+// ✅ Get all team members (Public)
+app.get('/api/team', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('team_members')
+            .select('*')
+            .eq('is_active', true)
+            .order('sort_order', { ascending: true })
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Team load error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load team members.',
+                error: error.message
+            });
+        }
+
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        console.error('Team GET server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Get all team members (Admin)
+app.get('/api/admin/team', requireAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('team_members')
+            .select('*')
+            .order('sort_order', { ascending: true })
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Admin team load error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load team members.',
+                error: error.message
+            });
+        }
+
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        console.error('Admin team GET server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Get single team member
+app.get('/api/team/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('team_members')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Team member load error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not load team member.',
+                error: error.message
+            });
+        }
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Team member not found.'
+            });
+        }
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Team member GET server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Create team member (Admin)
+app.post('/api/admin/team', requireAuth, async (req, res) => {
+    try {
+        const {
+            name, role, bio, image_url, skills,
+            social_linkedin, social_github, social_twitter,
+            social_dribbble, social_behance,
+            portfolio_url, 
+            experience_years, projects_count, satisfaction_rate,
+            rating, sort_order, is_active
+        } = req.body;
+
+        if (!name || !role) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name and role are required.'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('team_members')
+            .insert({
+                name,
+                role,
+                bio: bio || '',
+                image_url: image_url || '',
+                skills: skills || [],
+                social_linkedin: social_linkedin || '',
+                social_github: social_github || '',
+                social_twitter: social_twitter || '',
+                social_dribbble: social_dribbble || '',
+                social_behance: social_behance || '',
+                  portfolio_url: portfolio_url || '',
+                experience_years: experience_years || 0,
+                projects_count: projects_count || 0,
+                satisfaction_rate: satisfaction_rate || 0,
+                rating: rating || 0,
+                sort_order: sort_order || 0,
+                is_active: is_active !== undefined ? is_active : true
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Team member create error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not create team member.',
+                error: error.message
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Team member created successfully.',
+            data
+        });
+    } catch (error) {
+        console.error('Team member POST server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Update team member (Admin)
+app.put('/api/admin/team/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            name, role, bio, image_url, skills,
+            social_linkedin, social_github, social_twitter,
+            social_dribbble, social_behance,
+            portfolio_url,
+            experience_years, projects_count, satisfaction_rate,
+            rating, sort_order, is_active
+        } = req.body;
+
+        const { data, error } = await supabase
+            .from('team_members')
+            .update({
+                name,
+                role,
+                bio: bio || '',
+                image_url: image_url || '',
+                skills: skills || [],
+                social_linkedin: social_linkedin || '',
+                social_github: social_github || '',
+                social_twitter: social_twitter || '',
+                social_dribbble: social_dribbble || '',
+                social_behance: social_behance || '',
+                portfolio_url: portfolio_url || '',
+                experience_years: experience_years || 0,
+                projects_count: projects_count || 0,
+                satisfaction_rate: satisfaction_rate || 0,
+                rating: rating || 0,
+                sort_order: sort_order || 0,
+                is_active: is_active !== undefined ? is_active : true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Team member update error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not update team member.',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Team member updated successfully.',
+            data
+        });
+    } catch (error) {
+        console.error('Team member PUT server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Delete team member (Admin)
+app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('team_members')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Team member delete error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not delete team member.',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Team member deleted successfully.'
+        });
+    } catch (error) {
+        console.error('Team member DELETE server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
 /* =========================================================
    FRONTEND FALLBACK
 ========================================================= */
@@ -3870,8 +4171,10 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 My Resume Portfolio running at http://localhost:${PORT}`);
+    console.log(`🌐 BASE_URL: ${BASE_URL}`);
     console.log('👥 Client Portal API ready');
     console.log('💬 Chat System ready');
     console.log('📢 Notifications API ready');
+    console.log('💳 Payment API ready');
     console.log('✅ All systems ready!');
 });
