@@ -1001,12 +1001,6 @@ app.delete('/api/services/:id', requireAuth, async (req, res) => {
    PROJECTS API
 ========================================================= */
 
-// ✅ Projects API with category filter
-/* =========================================================
-   PROJECTS API
-========================================================= */
-
-// ✅ Get all projects (with optional category filter)
 app.get('/api/projects', async (req, res) => {
     try {
         const { category } = req.query;
@@ -1041,7 +1035,6 @@ app.get('/api/projects', async (req, res) => {
     }
 });
 
-// ✅ Get single project by ID
 app.get('/api/projects/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -1078,7 +1071,6 @@ app.get('/api/projects/:id', async (req, res) => {
     }
 });
 
-// ✅ Create project
 app.post('/api/projects', requireAuth, async (req, res) => {
     try {
         const { 
@@ -1131,7 +1123,6 @@ app.post('/api/projects', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Update project
 app.put('/api/projects/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -1180,7 +1171,6 @@ app.put('/api/projects/:id', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Delete project
 app.delete('/api/projects/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -3259,7 +3249,6 @@ app.put('/api/admin/chat/mark-read/:client_id', requireAuth, async (req, res) =>
    📢 NOTIFICATIONS API - COMPLETE
 ========================================================= */
 
-// ✅ Get customer notifications
 app.get('/api/notifications', async (req, res) => {
     try {
         const email = req.query.email;
@@ -3295,7 +3284,6 @@ app.get('/api/notifications', async (req, res) => {
     }
 });
 
-// ✅ Mark notification as read
 app.put('/api/notifications/:id/read', async (req, res) => {
     try {
         const { id } = req.params;
@@ -3328,7 +3316,6 @@ app.put('/api/notifications/:id/read', async (req, res) => {
     }
 });
 
-// ✅ Create notification
 app.post('/api/notifications', async (req, res) => {
     try {
         const { customer_email, customer_name, message, notification_type, title, action_url } = req.body;
@@ -3372,7 +3359,6 @@ app.post('/api/notifications', async (req, res) => {
     }
 });
 
-// ✅ Admin - Send notification to clients
 app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
     try {
         const { title, message, notification_type, target_type, target_clients } = req.body;
@@ -3479,7 +3465,6 @@ app.post('/api/admin/notifications/send', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Admin - Get all notifications
 app.get('/api/admin/notifications', requireAuth, async (req, res) => {
     try {
         const { limit = 50, offset = 0 } = req.query;
@@ -3520,7 +3505,7 @@ app.get('/api/admin/notifications', requireAuth, async (req, res) => {
 });
 
 /* =========================================================
-   SERVICES SALE API
+   SERVICES SALE API (PUBLIC)
 ========================================================= */
 
 app.get('/api/services-sale', async (req, res) => {
@@ -3563,6 +3548,284 @@ app.get('/api/services-sale/:slug', async (req, res) => {
         res.json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/* =========================================================
+   ADMIN - SERVICES SALE API (COMPLETE)
+========================================================= */
+
+// ✅ Admin - Get all services for sale (including unavailable)
+app.get('/api/admin/services-sale', requireAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('services_sale')
+            .select('*')
+            .order('sort_order', { ascending: true });
+
+        if (error) throw error;
+        res.json({ success: true, data: data || [] });
+    } catch (error) {
+        console.error('Admin services-sale error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Admin - Get single service by ID
+app.get('/api/admin/services-sale/id/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Service fetch error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not fetch service.',
+                error: error.message
+            });
+        }
+
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                message: 'Service not found.'
+            });
+        }
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Service GET server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Admin - Create service for sale
+app.post('/api/admin/services-sale', requireAuth, async (req, res) => {
+    try {
+        const {
+            name, slug, description, price, sale_price,
+            category, image_url, demo_url, features,
+            is_available, is_featured, sort_order
+        } = req.body;
+
+        if (!name || !slug || !description || !price) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, slug, description and price are required.'
+            });
+        }
+
+        // Check if slug exists
+        const { data: existing, error: checkError } = await supabase
+            .from('services_sale')
+            .select('id')
+            .eq('slug', slug)
+            .single();
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'Slug already exists. Please use a different slug.'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .insert({
+                name,
+                slug,
+                description,
+                price: parseFloat(price) || 0,
+                sale_price: sale_price ? parseFloat(sale_price) : null,
+                category: category || 'website',
+                image_url: image_url || '',
+                demo_url: demo_url || '',
+                features: features || {},
+                is_available: is_available !== undefined ? is_available : true,
+                is_featured: is_featured || false,
+                sort_order: sort_order || 0,
+                views: 0,
+                created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Service create error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not create service.',
+                error: error.message
+            });
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Service created successfully.',
+            data
+        });
+    } catch (error) {
+        console.error('Service POST server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Admin - Update service for sale
+app.put('/api/admin/services-sale/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            name, slug, description, price, sale_price,
+            category, image_url, demo_url, features,
+            is_available, is_featured, sort_order
+        } = req.body;
+
+        if (!name || !slug || !description || !price) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, slug, description and price are required.'
+            });
+        }
+
+        // Check if slug exists for other records
+        const { data: existing, error: checkError } = await supabase
+            .from('services_sale')
+            .select('id')
+            .eq('slug', slug)
+            .neq('id', id)
+            .single();
+
+        if (existing) {
+            return res.status(400).json({
+                success: false,
+                message: 'Slug already exists. Please use a different slug.'
+            });
+        }
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .update({
+                name,
+                slug,
+                description,
+                price: parseFloat(price) || 0,
+                sale_price: sale_price ? parseFloat(sale_price) : null,
+                category: category || 'website',
+                image_url: image_url || '',
+                demo_url: demo_url || '',
+                features: features || {},
+                is_available: is_available !== undefined ? is_available : true,
+                is_featured: is_featured || false,
+                sort_order: sort_order || 0,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Service update error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not update service.',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Service updated successfully.',
+            data
+        });
+    } catch (error) {
+        console.error('Service PUT server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Admin - Delete service for sale
+app.delete('/api/admin/services-sale/:id', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { error } = await supabase
+            .from('services_sale')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Service delete error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not delete service.',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Service deleted successfully.'
+        });
+    } catch (error) {
+        console.error('Service DELETE server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
+    }
+});
+
+// ✅ Admin - Toggle service availability (for the toggle button)
+app.put('/api/admin/services-sale/:id/toggle', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { is_available } = req.body;
+
+        const { data, error } = await supabase
+            .from('services_sale')
+            .update({
+                is_available: is_available !== undefined ? is_available : true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Toggle service error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Could not update service availability.',
+                error: error.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `Service ${is_available ? 'listed' : 'unlisted'} successfully.`,
+            data
+        });
+    } catch (error) {
+        console.error('Toggle service server error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error.'
+        });
     }
 });
 
@@ -3894,7 +4157,6 @@ app.post('/api/payment/cancel', async (req, res) => {
    👥 TEAM MEMBERS API
 ========================================================= */
 
-// ✅ Get all team members (Public)
 app.get('/api/team', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -3923,7 +4185,6 @@ app.get('/api/team', async (req, res) => {
     }
 });
 
-// ✅ Get all team members (Admin)
 app.get('/api/admin/team', requireAuth, async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -3951,7 +4212,6 @@ app.get('/api/admin/team', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Get single team member
 app.get('/api/team/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -3988,7 +4248,6 @@ app.get('/api/team/:id', async (req, res) => {
     }
 });
 
-// ✅ Create team member (Admin)
 app.post('/api/admin/team', requireAuth, async (req, res) => {
     try {
         const {
@@ -4020,7 +4279,7 @@ app.post('/api/admin/team', requireAuth, async (req, res) => {
                 social_twitter: social_twitter || '',
                 social_dribbble: social_dribbble || '',
                 social_behance: social_behance || '',
-                  portfolio_url: portfolio_url || '',
+                portfolio_url: portfolio_url || '',
                 experience_years: experience_years || 0,
                 projects_count: projects_count || 0,
                 satisfaction_rate: satisfaction_rate || 0,
@@ -4054,7 +4313,6 @@ app.post('/api/admin/team', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Update team member (Admin)
 app.put('/api/admin/team/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -4116,7 +4374,6 @@ app.put('/api/admin/team/:id', requireAuth, async (req, res) => {
     }
 });
 
-// ✅ Delete team member (Admin)
 app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -4147,6 +4404,7 @@ app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
         });
     }
 });
+
 /* =========================================================
    FRONTEND FALLBACK
 ========================================================= */
